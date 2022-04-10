@@ -7,7 +7,7 @@ defmodule Ecto.DevLogger.MixProject do
     [
       app: :ecto_dev_logger,
       version: @version,
-      elixir: "~> 1.12",
+      elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       description: "An alternative Ecto logger for development",
       package: package(),
