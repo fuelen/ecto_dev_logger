@@ -16,9 +16,9 @@ defmodule Ecto.DevLogger.MixProject do
         formatters: ["html"],
         extras: ["README.md": [title: "README"]],
         source_url: @source_url,
-        source_ref: "v#{@version}"
-      ],
-      aliases: [docs: ["docs", &copy_images/1]]
+        source_ref: "v#{@version}",
+        assets: "assets"
+      ]
     ]
   end
 
@@ -29,10 +29,6 @@ defmodule Ecto.DevLogger.MixProject do
         GitHub: @source_url
       }
     ]
-  end
-
-  defp copy_images(_) do
-    File.cp("screenshot.png", "doc/screenshot.png", fn _source, _destination -> true end)
   end
 
   def application do

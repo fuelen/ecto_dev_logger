@@ -6,7 +6,7 @@ It inlines bindings into the query, so it is easy to copy-paste logged SQL and r
 manual transformation of common elixir terms to string representation (binary UUID, DateTime, Decimal, json, etc).
 Also, it highlights db time to make slow queries noticeable. Source table and inlined bindings are highlighted as well.
 
-![before and after](screenshot.png)
+![before and after](./assets/screenshot.png)
 
 
 ## Installation
