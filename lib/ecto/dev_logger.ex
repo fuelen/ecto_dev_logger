@@ -56,7 +56,9 @@ defmodule Ecto.DevLogger do
               apply(IO.ANSI, color, [])
             ])
 
-          String.replace(query, "$#{index}", replacement)
+          repo_adapter = metadata[:repo].__adapter__()
+
+          replace_params(repo_adapter, query, index, replacement)
         end)
 
       Logger.debug(
@@ -181,5 +183,13 @@ defmodule Ecto.DevLogger do
 
   defp stringify_ecto_params(%{} = map, :child) when not is_struct(map) do
     Jason.encode!(map)
+  end
+
+  defp replace_params(Ecto.Adapters.Tds, query, index, replacement) do
+    String.replace(query, "@#{index}", replacement)
+  end
+
+  defp replace_params(_adapter, query, index, replacement) do
+    String.replace(query, "$#{index}", replacement)
   end
 end
