@@ -43,6 +43,7 @@ defmodule Ecto.DevLogger do
     unless oban_query?(metadata) do
       query_string = String.Chars.to_string(metadata.query)
       color = sql_color(query_string)
+      repo_adapter = metadata[:repo].__adapter__()
 
       query_string =
         metadata.params
@@ -55,8 +56,6 @@ defmodule Ecto.DevLogger do
               stringify_ecto_params(binding, :root),
               apply(IO.ANSI, color, [])
             ])
-
-          repo_adapter = metadata[:repo].__adapter__()
 
           replace_params(repo_adapter, query, index, replacement)
         end)
