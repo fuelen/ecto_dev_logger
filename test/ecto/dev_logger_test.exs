@@ -26,6 +26,8 @@ defmodule Ecto.DevLoggerTest do
     Repo.__adapter__().storage_up(config())
     {:ok, _} = Repo.start_link(config())
 
+    Repo.query!("CREATE EXTENSION \"pgcrypto\";")
+
     Repo.query!("""
     CREATE TABLE posts (
       id uuid PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
