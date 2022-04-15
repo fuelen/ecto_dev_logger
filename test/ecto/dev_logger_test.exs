@@ -12,7 +12,7 @@ defmodule Ecto.DevLoggerTest do
   defmodule Money.Ecto.Type do
     use Ecto.ParameterizedType
 
-    def type(_params), do: :composite_type
+    def type(_params), do: :money_type
 
     def init(_opts), do: %{}
 
