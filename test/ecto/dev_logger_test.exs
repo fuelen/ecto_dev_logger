@@ -17,7 +17,9 @@ defmodule Ecto.DevLoggerTest do
     def init(_opts), do: %{}
 
     def cast(_data, _params), do: {:ok, nil}
-    def load(_data, _loader, _params), do: {:ok, nil}
+
+    def load(nil, _loader, _params), do: {:ok, nil}
+    def load({currency, value}, _loader, _params), do: {:ok, %Money{currency: currency, value: value}}
 
     def dump(nil, _dumper, _params), do: {:ok, nil}
     def dump(data, _dumper, _params), do: {:ok, {data.currency, data.value}}
@@ -38,9 +40,10 @@ defmodule Ecto.DevLoggerTest do
       field(:decimal, :decimal)
       field(:date, :date)
       field(:array_of_strings, {:array, :string})
+      field(:money, Money.Ecto.Type)
+      field(:multi_money, {:array, Money.Ecto.Type})
       field(:datetime, :utc_datetime_usec)
       field(:naive_datetime, :naive_datetime_usec)
-      field(:money, Money.Ecto.Type)
     end
   end
 
@@ -65,6 +68,7 @@ defmodule Ecto.DevLoggerTest do
       date date,
       array_of_strings text[],
       money money_type,
+      multi_money money_type[],
       datetime timestamp without time zone NOT NULL,
       naive_datetime timestamp without time zone NOT NULL
     )
@@ -92,6 +96,7 @@ defmodule Ecto.DevLoggerTest do
         date: Date.utc_today(),
         array_of_strings: ["hello", "world"],
         money: %Money{currency: "USD", value: 390},
+        multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
         datetime: DateTime.utc_now(),
         naive_datetime: NaiveDateTime.utc_now()
       })

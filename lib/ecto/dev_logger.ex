@@ -168,14 +168,17 @@ defmodule Ecto.DevLogger do
     "'#{stringify_ecto_params(map, :child)}'"
   end
 
-  defp stringify_ecto_params(composite, :root) when is_tuple(composite) do
+  defp stringify_ecto_params(composite, level) when is_tuple(composite) do
     values =
       composite
       |> Tuple.to_list()
       |> Enum.map(&stringify_ecto_params(&1, :child))
       |> Enum.join(", ")
 
-    "'(#{values})'"
+    case level do
+      :root -> "'(#{values})'"
+      :child -> "\"(#{values})\""
+    end
   end
 
   defp stringify_ecto_params(%Date{} = date, :child) do
