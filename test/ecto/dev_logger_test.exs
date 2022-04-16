@@ -5,6 +5,30 @@ defmodule Ecto.DevLoggerTest do
     use Ecto.Repo, adapter: Ecto.Adapters.Postgres, otp_app: :does_not_matter
   end
 
+  defmodule Money do
+    defstruct [:currency, :value]
+  end
+
+  defmodule Money.Ecto.Type do
+    use Ecto.ParameterizedType
+
+    def type(_params), do: :money_type
+
+    def init(_opts), do: %{}
+
+    def cast(_data, _params), do: {:ok, nil}
+
+    def load(nil, _loader, _params), do: {:ok, nil}
+    def load({currency, value}, _loader, _params), do: {:ok, %Money{currency: currency, value: value}}
+
+    def dump(nil, _dumper, _params), do: {:ok, nil}
+    def dump(data, _dumper, _params), do: {:ok, {data.currency, data.value}}
+
+    def equal?(a, b, _params) do
+      a == b
+    end
+  end
+
   defmodule Post do
     use Ecto.Schema
 
@@ -16,6 +40,8 @@ defmodule Ecto.DevLoggerTest do
       field(:decimal, :decimal)
       field(:date, :date)
       field(:array_of_strings, {:array, :string})
+      field(:money, Money.Ecto.Type)
+      field(:multi_money, {:array, Money.Ecto.Type})
       field(:datetime, :utc_datetime_usec)
       field(:naive_datetime, :naive_datetime_usec)
     end
@@ -26,6 +52,12 @@ defmodule Ecto.DevLoggerTest do
     Repo.__adapter__().storage_up(config())
     {:ok, _} = Repo.start_link(config())
 
+    Repo.query!("CREATE EXTENSION \"pgcrypto\";")
+
+    Repo.query!("""
+    CREATE TYPE money_type AS (currency char(3), value integer);
+    """)
+
     Repo.query!("""
     CREATE TABLE posts (
       id uuid PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
@@ -35,6 +67,8 @@ defmodule Ecto.DevLoggerTest do
       decimal numeric,
       date date,
       array_of_strings text[],
+      money money_type,
+      multi_money money_type[],
       datetime timestamp without time zone NOT NULL,
       naive_datetime timestamp without time zone NOT NULL
     )
@@ -57,12 +91,14 @@ defmodule Ecto.DevLoggerTest do
       Repo.insert!(%Post{
         string: "Post 1",
         map: %{test: true},
+        integer: 0,
         decimal: Decimal.from_float(0.12),
         date: Date.utc_today(),
-        datetime: DateTime.utc_now(),
         array_of_strings: ["hello", "world"],
-        naive_datetime: NaiveDateTime.utc_now(),
-        integer: 0
+        money: %Money{currency: "USD", value: 390},
+        multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
+        datetime: DateTime.utc_now(),
+        naive_datetime: NaiveDateTime.utc_now()
       })
 
     post = Repo.get!(Post, post_id)
