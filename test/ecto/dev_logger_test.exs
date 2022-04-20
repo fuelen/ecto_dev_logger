@@ -19,7 +19,9 @@ defmodule Ecto.DevLoggerTest do
     def cast(_data, _params), do: {:ok, nil}
 
     def load(nil, _loader, _params), do: {:ok, nil}
-    def load({currency, value}, _loader, _params), do: {:ok, %Money{currency: currency, value: value}}
+
+    def load({currency, value}, _loader, _params),
+      do: {:ok, %Money{currency: currency, value: value}}
 
     def dump(nil, _dumper, _params), do: {:ok, nil}
     def dump(data, _dumper, _params), do: {:ok, {data.currency, data.value}}
@@ -35,6 +37,7 @@ defmodule Ecto.DevLoggerTest do
     @primary_key {:id, :binary_id, read_after_writes: true}
     schema "posts" do
       field(:string, :string)
+      field(:binary, :binary)
       field(:map, :map)
       field(:integer, :integer)
       field(:decimal, :decimal)
@@ -62,6 +65,7 @@ defmodule Ecto.DevLoggerTest do
     CREATE TABLE posts (
       id uuid PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
       string text,
+      "binary" bytea,
       map jsonb,
       integer integer,
       decimal numeric,
@@ -89,12 +93,15 @@ defmodule Ecto.DevLoggerTest do
   test "everything" do
     %{id: post_id} =
       Repo.insert!(%Post{
-        string: "Post 1",
-        map: %{test: true},
+        string: "Post '1'",
+        binary:
+          <<246, 229, 61, 115, 2, 108, 128, 33, 102, 144, 102, 55, 125, 237, 142, 40, 217, 225,
+            234, 79, 134, 83, 85, 94, 218, 15, 55, 38, 39>>,
+        map: %{test: true, string: "\"'"},
         integer: 0,
         decimal: Decimal.from_float(0.12),
         date: Date.utc_today(),
-        array_of_strings: ["hello", "world"],
+        array_of_strings: ["single_word", "hello, comma", "hey 'quotes'", "hey \"quotes\""],
         money: %Money{currency: "USD", value: 390},
         multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
         datetime: DateTime.utc_now(),
@@ -102,7 +109,7 @@ defmodule Ecto.DevLoggerTest do
       })
 
     post = Repo.get!(Post, post_id)
-    post = post |> Ecto.Changeset.change(string: "Post 2") |> Repo.update!()
+    post = post |> Ecto.Changeset.change(string: "Post '2'") |> Repo.update!()
     Repo.delete!(post)
 
     Enum.each([0.02, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15], fn duration ->

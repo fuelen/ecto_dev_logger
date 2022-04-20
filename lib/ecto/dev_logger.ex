@@ -150,34 +150,54 @@ defmodule Ecto.DevLogger do
       end
 
     case level do
-      :root -> "'#{string}'"
-      :child -> string
+      :root ->
+        if String.valid?(string) do
+          in_quotes(string)
+        else
+          "DECODE('#{Base.encode64(string)}', 'BASE64')"
+        end
+
+      :child ->
+        string
     end
   end
 
   defp stringify_ecto_params(binding, :root) when is_list(binding) do
-    "'{" <> Enum.map_join(binding, ",", &stringify_ecto_params(&1, :child)) <> "}'"
+    in_quotes(
+      "{" <>
+        Enum.map_join(binding, ",", fn item ->
+          string =
+            item
+            |> stringify_ecto_params(:child)
+            |> String.replace("\"", "\\\"")
+
+          if Enum.any?([",", "{", "}"], fn symbol -> String.contains?(string, symbol) end) do
+            "\"#{string}\""
+          else
+            string
+          end
+        end) <> "}"
+    )
   end
 
   defp stringify_ecto_params(%module{} = date, :root)
        when module in [Date, DateTime, NaiveDateTime] do
-    "'#{stringify_ecto_params(date, :child)}'"
+    date |> stringify_ecto_params(:child) |> in_quotes()
   end
 
   defp stringify_ecto_params(%{} = map, :root) when not is_struct(map) do
-    "'#{stringify_ecto_params(map, :child)}'"
+    map |> stringify_ecto_params(:child) |> in_quotes()
   end
 
   defp stringify_ecto_params(composite, level) when is_tuple(composite) do
     values =
       composite
       |> Tuple.to_list()
-      |> Enum.map(&stringify_ecto_params(&1, :child))
-      |> Enum.join(", ")
+      |> Enum.map_join(",", &stringify_ecto_params(&1, :child))
 
     case level do
-      :root -> "'(#{values})'"
-      :child -> "\"(#{values})\""
+      :root -> in_quotes("(#{values})")
+      :child -> "(#{values})"
     end
   end
 
@@ -203,5 +223,9 @@ defmodule Ecto.DevLogger do
 
   defp replace_params(_adapter, query, index, replacement) do
     String.replace(query, "$#{index}", replacement)
+  end
+
+  defp in_quotes(string) do
+    "'#{String.replace(string, "'", "''")}'"
   end
 end
