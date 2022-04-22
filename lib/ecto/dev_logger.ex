@@ -9,19 +9,22 @@ defmodule Ecto.DevLogger do
 
   require Logger
 
+  alias Ecto.DevLogger.ParameterSerializer
+
   @doc """
   Attaches `telemetry_handler/4` to application.
   """
   @spec install(repo_module :: module()) :: :ok
   def install(repo_module) when is_atom(repo_module) do
     config = repo_module.config()
+    opts = Application.get_all_env(:ecto_dev_logger)
 
     if config[:log] == false do
       :telemetry.attach(
         "ecto.dev_logger",
         config[:telemetry_prefix] ++ [:query],
         &__MODULE__.telemetry_handler/4,
-        nil
+        opts
       )
     end
 
@@ -32,6 +35,9 @@ defmodule Ecto.DevLogger do
     not is_nil(metadata[:options][:oban_conf])
   end
 
+  defp opts(nil), do: []
+  defp opts(config) when is_list(config), do: config
+
   @doc "Telemetry handler which logs queries."
   @spec telemetry_handler(
           :telemetry.event_name(),
@@ -39,7 +45,9 @@ defmodule Ecto.DevLogger do
           :telemetry.event_metadata(),
           :telemetry.handler_config()
         ) :: :ok
-  def telemetry_handler(_event_name, measurements, metadata, _config) do
+  def telemetry_handler(_event_name, measurements, metadata, config) do
+    opts = opts(config)
+
     unless oban_query?(metadata) do
       query_string = String.Chars.to_string(metadata.query)
       color = sql_color(query_string)
@@ -53,7 +61,7 @@ defmodule Ecto.DevLogger do
           replacement =
             to_string([
               IO.ANSI.color(0, 2, 3),
-              stringify_ecto_params(binding, :root),
+              stringify_ecto_params(binding, :root, opts),
               apply(IO.ANSI, color, [])
             ])
 
@@ -134,13 +142,13 @@ defmodule Ecto.DevLogger do
   defp sql_color("commit" <> _), do: :magenta
   defp sql_color(_), do: :default_color
 
-  defp stringify_ecto_params(binding, _level)
+  defp stringify_ecto_params(binding, _level, _opts)
        when is_float(binding) or is_integer(binding) or is_atom(binding),
        do: to_string(binding)
 
-  defp stringify_ecto_params(%Decimal{} = binding, _level), do: to_string(binding)
+  defp stringify_ecto_params(%Decimal{} = binding, _level, _opts), do: to_string(binding)
 
-  defp stringify_ecto_params(binding, level) when is_binary(binding) do
+  defp stringify_ecto_params(binding, level, _opts) when is_binary(binding) do
     string =
       with <<_::128>> <- binding,
            {:ok, string} <- Ecto.UUID.load(binding) do
@@ -162,13 +170,13 @@ defmodule Ecto.DevLogger do
     end
   end
 
-  defp stringify_ecto_params(binding, :root) when is_list(binding) do
+  defp stringify_ecto_params(binding, :root, opts) when is_list(binding) do
     in_quotes(
       "{" <>
         Enum.map_join(binding, ",", fn item ->
           string =
             item
-            |> stringify_ecto_params(:child)
+            |> stringify_ecto_params(:child, opts)
             |> String.replace("\"", "\\\"")
 
           if Enum.any?([",", "{", "}"], fn symbol -> String.contains?(string, symbol) end) do
@@ -180,20 +188,20 @@ defmodule Ecto.DevLogger do
     )
   end
 
-  defp stringify_ecto_params(%module{} = date, :root)
+  defp stringify_ecto_params(%module{} = date, :root, opts)
        when module in [Date, DateTime, NaiveDateTime] do
-    date |> stringify_ecto_params(:child) |> in_quotes()
+    date |> stringify_ecto_params(:child, opts) |> in_quotes()
   end
 
-  defp stringify_ecto_params(%{} = map, :root) when not is_struct(map) do
-    map |> stringify_ecto_params(:child) |> in_quotes()
+  defp stringify_ecto_params(%{} = map, :root, opts) when not is_struct(map) do
+    map |> stringify_ecto_params(:child, opts) |> in_quotes()
   end
 
-  defp stringify_ecto_params(composite, level) when is_tuple(composite) do
+  defp stringify_ecto_params(composite, level, opts) when is_tuple(composite) do
     values =
       composite
       |> Tuple.to_list()
-      |> Enum.map_join(",", &stringify_ecto_params(&1, :child))
+      |> Enum.map_join(",", &stringify_ecto_params(&1, :child, opts))
 
     case level do
       :root -> in_quotes("(#{values})")
@@ -201,20 +209,24 @@ defmodule Ecto.DevLogger do
     end
   end
 
-  defp stringify_ecto_params(%Date{} = date, :child) do
+  defp stringify_ecto_params(%Date{} = date, :child, _opts) do
     to_string(date)
   end
 
-  defp stringify_ecto_params(%NaiveDateTime{} = datetime, :child) do
+  defp stringify_ecto_params(%NaiveDateTime{} = datetime, :child, _opts) do
     NaiveDateTime.to_iso8601(datetime)
   end
 
-  defp stringify_ecto_params(%DateTime{} = datetime, :child) do
+  defp stringify_ecto_params(%DateTime{} = datetime, :child, _opts) do
     DateTime.to_iso8601(datetime)
   end
 
-  defp stringify_ecto_params(%{} = map, :child) when not is_struct(map) do
+  defp stringify_ecto_params(%{} = map, :child, _opts) when not is_struct(map) do
     Jason.encode!(map)
+  end
+
+  defp stringify_ecto_params(param, _level, opts) do
+    ParameterSerializer.stringify_ecto_params(param, opts)
   end
 
   defp replace_params(Ecto.Adapters.Tds, query, index, replacement) do
