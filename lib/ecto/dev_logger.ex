@@ -69,16 +69,17 @@ defmodule Ecto.DevLogger do
     :ok
   end
 
-  defp log_sql_iodata(query, measurements, %{result: result, source: source}, color) do
+  defp log_sql_iodata(query, measurements, metadata, color) do
     [
       "QUERY",
       ?\s,
-      log_ok_error(result),
-      log_ok_source(source, color),
+      log_ok_error(metadata.result),
+      log_ok_source(metadata.source, color),
       log_time("db", measurements, :query_time, true, color),
       log_time("decode", measurements, :decode_time, false, color),
       ?\n,
-      query
+      query,
+      log_stacktrace(metadata[:stacktrace], metadata.repo, color)
     ]
   end
 
@@ -228,4 +229,37 @@ defmodule Ecto.DevLogger do
   defp in_quotes(string) do
     "'#{String.replace(string, "'", "''")}'"
   end
+
+  defp log_stacktrace(stacktrace, repo, color) do
+    with [_ | _] <- stacktrace,
+         {module, function, arity, info} <- last_non_ecto(Enum.reverse(stacktrace), repo, nil) do
+      [
+        IO.ANSI.light_black(),
+        ?\n,
+        "↳ ",
+        Exception.format_mfa(module, function, arity),
+        log_stacktrace_info(info),
+        apply(IO.ANSI, color, [])
+      ]
+    else
+      _ -> []
+    end
+  end
+
+  defp log_stacktrace_info([file: file, line: line] ++ _) do
+    [", at: ", file, ?:, Integer.to_string(line)]
+  end
+
+  defp log_stacktrace_info(_) do
+    []
+  end
+
+  @repo_modules [Ecto.Repo.Queryable, Ecto.Repo.Schema, Ecto.Repo.Transaction]
+
+  defp last_non_ecto([{mod, _, _, _} | _stacktrace], repo, last)
+       when mod == repo or mod in @repo_modules,
+       do: last
+
+  defp last_non_ecto([last | stacktrace], repo, _last), do: last_non_ecto(stacktrace, repo, last)
+  defp last_non_ecto([], _repo, last), do: last
 end

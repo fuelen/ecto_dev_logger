@@ -129,6 +129,7 @@ defmodule Ecto.DevLoggerTest do
       password: "postgres",
       port: 5432,
       log: false,
+      stacktrace: true,
       pool_size: 10
     ]
   end
