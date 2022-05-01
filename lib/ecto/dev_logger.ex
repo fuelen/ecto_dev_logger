@@ -135,6 +135,7 @@ defmodule Ecto.DevLogger do
   defp sql_color("commit" <> _), do: :magenta
   defp sql_color(_), do: :default_color
 
+  defp stringify_ecto_params(nil, _level), do: "NULL"
   defp stringify_ecto_params(binding, _level)
        when is_float(binding) or is_integer(binding) or is_atom(binding),
        do: to_string(binding)

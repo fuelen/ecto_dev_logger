@@ -109,7 +109,7 @@ defmodule Ecto.DevLoggerTest do
       })
 
     post = Repo.get!(Post, post_id)
-    post = post |> Ecto.Changeset.change(string: "Post '2'") |> Repo.update!()
+    post = post |> Ecto.Changeset.change(string: nil) |> Repo.update!()
     Repo.delete!(post)
 
     Enum.each([0.02, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15], fn duration ->
