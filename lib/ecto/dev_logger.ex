@@ -41,33 +41,47 @@ defmodule Ecto.DevLogger do
         ) :: :ok
   def telemetry_handler(_event_name, measurements, metadata, _config) do
     unless oban_query?(metadata) do
-      query_string = String.Chars.to_string(metadata.query)
-      color = sql_color(query_string)
+      query = String.Chars.to_string(metadata.query)
+      color = sql_color(query)
       repo_adapter = metadata[:repo].__adapter__()
 
-      query_string =
-        metadata.params
-        |> Enum.with_index(1)
-        |> Enum.reverse()
-        |> Enum.reduce(query_string, fn {binding, index}, query ->
-          replacement =
-            to_string([
-              IO.ANSI.color(0, 2, 3),
-              stringify_ecto_params(binding, :root),
-              apply(IO.ANSI, color, [])
-            ])
-
-          replace_params(repo_adapter, query, index, replacement)
-        end)
+      query = inline_params(query, metadata.params, color, repo_adapter)
 
       Logger.debug(
-        fn -> log_sql_iodata(query_string, measurements, metadata, color) end,
+        fn -> log_sql_iodata(query, measurements, metadata, color) end,
         ansi_color: color
       )
     end
 
     :ok
   end
+
+  def inline_params(query, params, return_to_color, repo_adapter) do
+    params_by_index =
+      params
+      |> Enum.with_index(1)
+      |> Map.new(fn {value, index} -> {index, value} end)
+
+    prefix_symbol = prefix_symbol(repo_adapter)
+
+    String.replace(query, ~r/#{Regex.escape(prefix_symbol)}\d+/, fn
+      <<_prefix::utf8, index::binary>> = replacement ->
+        case Map.fetch(params_by_index, String.to_integer(index)) do
+          {:ok, value} ->
+            [
+              IO.ANSI.color(0, 2, 3),
+              stringify_ecto_params(value, :root),
+              apply(IO.ANSI, return_to_color, [])
+            ]
+
+          :error ->
+            replacement
+        end
+    end)
+  end
+
+  defp prefix_symbol(Ecto.Adapters.Tds), do: "@"
+  defp prefix_symbol(_), do: "$"
 
   defp log_sql_iodata(query, measurements, metadata, color) do
     [
@@ -136,6 +150,7 @@ defmodule Ecto.DevLogger do
   defp sql_color(_), do: :default_color
 
   defp stringify_ecto_params(nil, _level), do: "NULL"
+
   defp stringify_ecto_params(binding, _level)
        when is_float(binding) or is_integer(binding) or is_atom(binding),
        do: to_string(binding)
@@ -217,14 +232,6 @@ defmodule Ecto.DevLogger do
 
   defp stringify_ecto_params(%{} = map, :child) when not is_struct(map) do
     Jason.encode!(map)
-  end
-
-  defp replace_params(Ecto.Adapters.Tds, query, index, replacement) do
-    String.replace(query, "@#{index}", replacement)
-  end
-
-  defp replace_params(_adapter, query, index, replacement) do
-    String.replace(query, "$#{index}", replacement)
   end
 
   defp in_quotes(string) do

@@ -47,6 +47,7 @@ defmodule Ecto.DevLoggerTest do
       field(:multi_money, {:array, Money.Ecto.Type})
       field(:datetime, :utc_datetime_usec)
       field(:naive_datetime, :naive_datetime_usec)
+      field(:password_digest, :string)
     end
   end
 
@@ -73,6 +74,7 @@ defmodule Ecto.DevLoggerTest do
       array_of_strings text[],
       money money_type,
       multi_money money_type[],
+      password_digest text,
       datetime timestamp without time zone NOT NULL,
       naive_datetime timestamp without time zone NOT NULL
     )
@@ -105,7 +107,8 @@ defmodule Ecto.DevLoggerTest do
         money: %Money{currency: "USD", value: 390},
         multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
         datetime: DateTime.utc_now(),
-        naive_datetime: NaiveDateTime.utc_now()
+        naive_datetime: NaiveDateTime.utc_now(),
+        password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd"
       })
 
     post = Repo.get!(Post, post_id)
