@@ -79,7 +79,7 @@ defmodule Ecto.DevLogger do
       log_time("decode", measurements, :decode_time, false, color),
       ?\n,
       query,
-      log_stacktrace(metadata[:stacktrace], metadata.repo, color)
+      log_stacktrace(metadata[:stacktrace], metadata.repo)
     ]
   end
 
@@ -231,7 +231,7 @@ defmodule Ecto.DevLogger do
     "'#{String.replace(string, "'", "''")}'"
   end
 
-  defp log_stacktrace(stacktrace, repo, color) do
+  defp log_stacktrace(stacktrace, repo) do
     with [_ | _] <- stacktrace,
          {module, function, arity, info} <- last_non_ecto(Enum.reverse(stacktrace), repo, nil) do
       [
@@ -239,8 +239,7 @@ defmodule Ecto.DevLogger do
         ?\n,
         "↳ ",
         Exception.format_mfa(module, function, arity),
-        log_stacktrace_info(info),
-        apply(IO.ANSI, color, [])
+        log_stacktrace_info(info)
       ]
     else
       _ -> []
