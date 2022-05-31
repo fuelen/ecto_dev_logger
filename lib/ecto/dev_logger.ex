@@ -56,7 +56,7 @@ defmodule Ecto.DevLogger do
     :ok
   end
 
-  def inline_params(query, params, return_to_color, repo_adapter) do
+  defp inline_params(query, params, return_to_color, repo_adapter) do
     params_by_index =
       params
       |> Enum.with_index(1)
