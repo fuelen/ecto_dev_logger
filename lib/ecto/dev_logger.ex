@@ -45,10 +45,12 @@ defmodule Ecto.DevLogger do
       color = sql_color(query)
       repo_adapter = metadata[:repo].__adapter__()
 
-      query = inline_params(query, metadata.params, color, repo_adapter)
-
       Logger.debug(
-        fn -> log_sql_iodata(query, measurements, metadata, color) end,
+        fn ->
+          query
+          |> inline_params(metadata.params, color, repo_adapter)
+          |> log_sql_iodata(measurements, metadata, color)
+        end,
         ansi_color: color
       )
     end
@@ -56,15 +58,21 @@ defmodule Ecto.DevLogger do
     :ok
   end
 
-  defp inline_params(query, params, return_to_color, repo_adapter) do
+  @doc false
+  def inline_params(query, params, _return_to_color, _repo_adapter) when map_size(params) == 0 do
+    query
+  end
+
+  def inline_params(query, params, return_to_color, repo_adapter)
+      when repo_adapter in [Ecto.Adapters.Postgres, Ecto.Adapters.Tds] do
     params_by_index =
       params
       |> Enum.with_index(1)
       |> Map.new(fn {value, index} -> {index, value} end)
 
-    prefix_symbol = prefix_symbol(repo_adapter)
+    placeholder_with_number_regex = placeholder_with_number_regex(repo_adapter)
 
-    String.replace(query, ~r/#{Regex.escape(prefix_symbol)}\d+/, fn
+    String.replace(query, placeholder_with_number_regex, fn
       <<_prefix::utf8, index::binary>> = replacement ->
         case Map.fetch(params_by_index, String.to_integer(index)) do
           {:ok, value} ->
@@ -80,8 +88,35 @@ defmodule Ecto.DevLogger do
     end)
   end
 
-  defp prefix_symbol(Ecto.Adapters.Tds), do: "@"
-  defp prefix_symbol(_), do: "$"
+  def inline_params(query, params, return_to_color, Ecto.Adapters.MyXQL) do
+    params_by_index =
+      params
+      |> Enum.with_index()
+      |> Map.new(fn {value, index} -> {index, value} end)
+
+    query
+    |> String.split("?")
+    |> Enum.map_reduce(0, fn elem, index ->
+      formatted_value =
+        case Map.fetch(params_by_index, index) do
+          {:ok, value} ->
+            [
+              IO.ANSI.color(0, 2, 3),
+              stringify_ecto_params(value, :root),
+              apply(IO.ANSI, return_to_color, [])
+            ]
+
+          :error ->
+            []
+        end
+
+      {[elem, formatted_value], index + 1}
+    end)
+    |> elem(0)
+  end
+
+  defp placeholder_with_number_regex(Ecto.Adapters.Postgres), do: ~r/\$\d+/
+  defp placeholder_with_number_regex(Ecto.Adapters.Tds), do: ~r/@\d+/
 
   defp log_sql_iodata(query, measurements, metadata, color) do
     [

@@ -120,6 +120,45 @@ defmodule Ecto.DevLoggerTest do
     end)
   end
 
+  describe "inline_params/4" do
+    @params [
+      nil,
+      <<95, 131, 49, 101, 176, 212, 77, 86, 178, 31, 80, 13, 41, 189, 148, 174>>
+    ]
+    @return_to_color :yellow
+    test "Postgres" do
+      assert Ecto.DevLogger.inline_params(
+               "UPDATE \"posts\" SET \"string\" = $1 WHERE \"id\" = $2 RETURNING \"id\"",
+               @params,
+               @return_to_color,
+               Ecto.Adapters.Postgres
+             ) ==
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m RETURNING \"id\""
+    end
+
+    test "Tds" do
+      assert Ecto.DevLogger.inline_params(
+               "UPDATE \"posts\" SET \"string\" = @1 WHERE \"id\" = @2 RETURNING \"id\"",
+               @params,
+               @return_to_color,
+               Ecto.Adapters.Tds
+             ) ==
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m RETURNING \"id\""
+    end
+
+    test "MySQL" do
+      assert to_string(
+               Ecto.DevLogger.inline_params(
+                 "UPDATE \"posts\" SET \"string\" = ? WHERE \"id\" = ? RETURNING \"id\"",
+                 @params,
+                 @return_to_color,
+                 Ecto.Adapters.MyXQL
+               )
+             ) ==
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m RETURNING \"id\""
+    end
+  end
+
   defp config do
     [
       telemetry_prefix: [:my_test_app, :repo],
