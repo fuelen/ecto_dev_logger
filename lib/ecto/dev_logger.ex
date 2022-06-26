@@ -12,23 +12,34 @@ defmodule Ecto.DevLogger do
   @doc """
   Attaches `telemetry_handler/4` to application.
   """
-  @spec install(repo_module :: module()) :: :ok
-  def install(repo_module) when is_atom(repo_module) do
+  @spec install(repo_module :: module()) :: :ok | {:error, :already_exists}
+  def install(repo_module, opts \\ []) when is_atom(repo_module) do
     config = repo_module.config()
 
     if config[:log] == false do
       :telemetry.attach(
-        "ecto.dev_logger",
+        handler_id(repo_module),
         config[:telemetry_prefix] ++ [:query],
         &__MODULE__.telemetry_handler/4,
-        nil
+        opts
       )
+    else
+      :ok
     end
-
-    :ok
   end
 
-  defp oban_query?(metadata) do
+  @spec uninstall(repo_module :: module()) :: :ok | {:error, :not_found}
+  def uninstall(repo_module) when is_atom(repo_module) do
+    :telemetry.detach(handler_id(repo_module))
+  end
+
+  @spec handler_id(repo_module :: module()) :: list()
+  def handler_id(repo_module) do
+    config = repo_module.config()
+    [:ecto_dev_logger] ++ config[:telemetry_prefix]
+  end
+
+  def oban_query?(metadata) do
     not is_nil(metadata[:options][:oban_conf])
   end
 
@@ -39,7 +50,7 @@ defmodule Ecto.DevLogger do
           :telemetry.event_metadata(),
           :telemetry.handler_config()
         ) :: :ok
-  def telemetry_handler(_event_name, measurements, metadata, _config) do
+  def telemetry_handler(_event_name, measurements, metadata, config) do
     unless oban_query?(metadata) do
       query = String.Chars.to_string(metadata.query)
       color = sql_color(query)
@@ -49,7 +60,7 @@ defmodule Ecto.DevLogger do
         fn ->
           query
           |> inline_params(metadata.params, color, repo_adapter)
-          |> log_sql_iodata(measurements, metadata, color)
+          |> log_sql_iodata(measurements, metadata, color, config)
         end,
         ansi_color: color
       )
@@ -118,12 +129,13 @@ defmodule Ecto.DevLogger do
   defp placeholder_with_number_regex(Ecto.Adapters.Postgres), do: ~r/\$\d+/
   defp placeholder_with_number_regex(Ecto.Adapters.Tds), do: ~r/@\d+/
 
-  defp log_sql_iodata(query, measurements, metadata, color) do
+  defp log_sql_iodata(query, measurements, metadata, color, config) do
     [
       "QUERY",
       ?\s,
       log_ok_error(metadata.result),
       log_ok_source(metadata.source, color),
+      log_repo(metadata.repo, color, config),
       log_time("db", measurements, :query_time, true, color),
       log_time("decode", measurements, :decode_time, false, color),
       ?\n,
@@ -134,6 +146,16 @@ defmodule Ecto.DevLogger do
 
   defp log_ok_error({:ok, _res}), do: "OK"
   defp log_ok_error({:error, _err}), do: "ERROR"
+
+  defp log_repo(nil, _color, _config), do: ""
+
+  defp log_repo(repo, color, config) do
+    Keyword.get(config, :log_repo_name, false)
+    |> case do
+      true -> [" repo=", IO.ANSI.blue(), inspect(repo), apply(IO.ANSI, color, [])]
+      _ -> ""
+    end
+  end
 
   defp log_ok_source(nil, _color), do: ""
 
