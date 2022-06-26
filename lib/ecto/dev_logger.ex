@@ -11,8 +11,14 @@ defmodule Ecto.DevLogger do
 
   @doc """
   Attaches `telemetry_handler/4` to application.
+
+  Returns the result from the call to `:telemetry.attach/4` or `:ok` if the repo has default logging enabled.
+
+  ## Options
+
+  * `:log_repo_name` - When truthy will add the repo name into the log
   """
-  @spec install(repo_module :: module()) :: :ok | {:error, :already_exists}
+  @spec install(repo_module :: module(), opts :: Keyword.t()) :: :ok | {:error, :already_exists}
   def install(repo_module, opts \\ []) when is_atom(repo_module) do
     config = repo_module.config()
 
@@ -28,11 +34,19 @@ defmodule Ecto.DevLogger do
     end
   end
 
+  @doc """
+  Detaches a previously attached handler for a given Repo.
+
+  Returns the result from the call to `:telemetry.detach/1`
+  """
   @spec uninstall(repo_module :: module()) :: :ok | {:error, :not_found}
   def uninstall(repo_module) when is_atom(repo_module) do
     :telemetry.detach(handler_id(repo_module))
   end
 
+  @doc """
+  Gets the handler_id for a given Repo.
+  """
   @spec handler_id(repo_module :: module()) :: list()
   def handler_id(repo_module) do
     config = repo_module.config()
