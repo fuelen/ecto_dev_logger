@@ -53,8 +53,12 @@ defmodule Ecto.DevLogger do
     [:ecto_dev_logger] ++ config[:telemetry_prefix]
   end
 
-  def oban_query?(metadata) do
+  defp oban_query?(metadata) do
     not is_nil(metadata[:options][:oban_conf])
+  end
+
+  defp schema_migration?(metadata) do
+    metadata[:options][:schema_migration] == true
   end
 
   @doc "Telemetry handler which logs queries."
@@ -65,7 +69,9 @@ defmodule Ecto.DevLogger do
           :telemetry.handler_config()
         ) :: :ok
   def telemetry_handler(_event_name, measurements, metadata, config) do
-    unless oban_query?(metadata) do
+    if oban_query?(metadata) or schema_migration?(metadata) do
+      :ok
+    else
       query = String.Chars.to_string(metadata.query)
       color = sql_color(query)
       repo_adapter = metadata[:repo].__adapter__()
@@ -79,8 +85,6 @@ defmodule Ecto.DevLogger do
         ansi_color: color
       )
     end
-
-    :ok
   end
 
   @doc false
