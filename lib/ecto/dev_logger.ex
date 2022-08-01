@@ -105,11 +105,9 @@ defmodule Ecto.DevLogger do
       <<_prefix::utf8, index::binary>> = replacement ->
         case Map.fetch(params_by_index, String.to_integer(index)) do
           {:ok, value} ->
-            [
-              IO.ANSI.color(0, 2, 3),
-              stringify_ecto_params(value, :root),
-              apply(IO.ANSI, return_to_color, [])
-            ]
+            value
+            |> stringify_ecto_params(:root)
+            |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
 
           :error ->
             replacement
@@ -129,11 +127,9 @@ defmodule Ecto.DevLogger do
       formatted_value =
         case Map.fetch(params_by_index, index) do
           {:ok, value} ->
-            [
-              IO.ANSI.color(0, 2, 3),
-              stringify_ecto_params(value, :root),
-              apply(IO.ANSI, return_to_color, [])
-            ]
+            value
+            |> stringify_ecto_params(:root)
+            |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
 
           :error ->
             []
@@ -170,7 +166,7 @@ defmodule Ecto.DevLogger do
   defp log_repo(repo, color, config) do
     Keyword.get(config, :log_repo_name, false)
     |> case do
-      true -> [" repo=", IO.ANSI.blue(), inspect(repo), apply(IO.ANSI, color, [])]
+      true -> [" repo=", colorize(inspect(repo), IO.ANSI.blue(), apply(IO.ANSI, color, []))]
       _ -> ""
     end
   end
@@ -178,7 +174,7 @@ defmodule Ecto.DevLogger do
   defp log_ok_source(nil, _color), do: ""
 
   defp log_ok_source(source, color),
-    do: [" source=", IO.ANSI.blue(), inspect(source), apply(IO.ANSI, color, [])]
+    do: [" source=", colorize(inspect(source), IO.ANSI.blue(), apply(IO.ANSI, color, []))]
 
   defp log_time(label, measurements, key, force, color) do
     case measurements do
@@ -191,7 +187,7 @@ defmodule Ecto.DevLogger do
 
           case duration_color(ms) do
             nil -> line
-            duration_color -> [duration_color, line, apply(IO.ANSI, color, [])]
+            duration_color -> colorize(line, duration_color, apply(IO.ANSI, color, []))
           end
         else
           []
@@ -204,13 +200,15 @@ defmodule Ecto.DevLogger do
 
   @colorize_step 25
   defp duration_color(duration) do
-    # don't colorize if duration < @colorize_step
-    duration = duration - @colorize_step
+    if IO.ANSI.enabled?() do
+      # don't colorize if duration < @colorize_step
+      duration = duration - @colorize_step
 
-    if duration > 0 do
-      # then every @colorize_step ms apply color from RGB(5, 5, 0) to RGB(5, 0, 0) (simple gradient from yellow to red)
-      green = 5 - min(div(floor(duration), @colorize_step), 5)
-      IO.ANSI.color(5, green, 0)
+      if duration > 0 do
+        # then every @colorize_step ms apply color from RGB(5, 5, 0) to RGB(5, 0, 0) (simple gradient from yellow to red)
+        green = 5 - min(div(floor(duration), @colorize_step), 5)
+        IO.ANSI.color(5, green, 0)
+      end
     end
   end
 
@@ -223,6 +221,14 @@ defmodule Ecto.DevLogger do
   defp sql_color("begin" <> _), do: :magenta
   defp sql_color("commit" <> _), do: :magenta
   defp sql_color(_), do: :default_color
+
+  defp colorize(term, color, return_to_color) do
+    if IO.ANSI.enabled?() do
+      [color, term, return_to_color]
+    else
+      term
+    end
+  end
 
   defp stringify_ecto_params(nil, _level), do: "NULL"
 
@@ -317,7 +323,7 @@ defmodule Ecto.DevLogger do
     with [_ | _] <- stacktrace,
          {module, function, arity, info} <- last_non_ecto(Enum.reverse(stacktrace), repo, nil) do
       [
-        IO.ANSI.light_black(),
+        if(IO.ANSI.enabled?(), do: IO.ANSI.light_black(), else: ""),
         ?\n,
         "↳ ",
         Exception.format_mfa(module, function, arity),
