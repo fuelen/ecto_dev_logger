@@ -129,39 +129,40 @@ defmodule Ecto.DevLoggerTest do
   describe "inline_params/4" do
     @params [
       nil,
-      <<95, 131, 49, 101, 176, 212, 77, 86, 178, 31, 80, 13, 41, 189, 148, 174>>
+      <<95, 131, 49, 101, 176, 212, 77, 86, 178, 31, 80, 13, 41, 189, 148, 174>>,
+      [["test"]]
     ]
     @return_to_color :yellow
     test "Postgres" do
       assert Ecto.DevLogger.inline_params(
-               "UPDATE \"posts\" SET \"string\" = $1 WHERE \"id\" = $2 RETURNING \"id\"",
+               "UPDATE \"posts\" SET \"string\" = $1 WHERE \"id\" = $2 AND \"array_of_array_of_string\" = $3 RETURNING \"id\"",
                @params,
                @return_to_color,
                Ecto.Adapters.Postgres
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{[\\\"test\\\"]}'\e[33m RETURNING \"id\""
     end
 
     test "Tds" do
       assert Ecto.DevLogger.inline_params(
-               "UPDATE \"posts\" SET \"string\" = @1 WHERE \"id\" = @2 RETURNING \"id\"",
+               "UPDATE \"posts\" SET \"string\" = @1 WHERE \"id\" = @2 AND \"array_of_array_of_string\" = @3 RETURNING \"id\"",
                @params,
                @return_to_color,
                Ecto.Adapters.Tds
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{[\\\"test\\\"]}'\e[33m RETURNING \"id\""
     end
 
     test "MySQL" do
       assert to_string(
                Ecto.DevLogger.inline_params(
-                 "UPDATE \"posts\" SET \"string\" = ? WHERE \"id\" = ? RETURNING \"id\"",
+                 "UPDATE \"posts\" SET \"string\" = ? WHERE \"id\" = ? AND \"array_of_array_of_string\" = ? RETURNING \"id\"",
                  @params,
                  @return_to_color,
                  Ecto.Adapters.MyXQL
                )
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{[\\\"test\\\"]}'\e[33m RETURNING \"id\""
     end
   end
 
@@ -273,7 +274,7 @@ defmodule Ecto.DevLoggerTest do
         _close
       ] = String.split(repo2_log, "\n")
 
-      ## Confirm that the logging remains the same apart from the addition of the repo name in the status line. 
+      ## Confirm that the logging remains the same apart from the addition of the repo name in the status line.
       assert repo2_insert_start == repo1_insert_start
 
       assert repo2_insert_status =~

@@ -315,6 +315,10 @@ defmodule Ecto.DevLogger do
     Jason.encode!(map)
   end
 
+  defp stringify_ecto_params(list, :child) when is_list(list) do
+    Jason.encode!(Enum.map(list, &stringify_ecto_params(&1, :child)))
+  end
+
   defp in_quotes(string) do
     "'#{String.replace(string, "'", "''")}'"
   end
