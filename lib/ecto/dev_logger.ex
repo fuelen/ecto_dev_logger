@@ -279,7 +279,7 @@ defmodule Ecto.DevLogger do
   end
 
   defp stringify_ecto_params(%module{} = date, :root)
-       when module in [Date, DateTime, NaiveDateTime] do
+       when module in [Date, Time, DateTime, NaiveDateTime] do
     date |> stringify_ecto_params(:child) |> in_quotes()
   end
 
@@ -301,6 +301,10 @@ defmodule Ecto.DevLogger do
 
   defp stringify_ecto_params(%Date{} = date, :child) do
     to_string(date)
+  end
+
+  defp stringify_ecto_params(%Time{} = time, :child) do
+    to_string(time)
   end
 
   defp stringify_ecto_params(%NaiveDateTime{} = datetime, :child) do

@@ -80,6 +80,7 @@ defmodule Ecto.DevLoggerTest do
       field(:integer, :integer)
       field(:decimal, :decimal)
       field(:date, :date)
+      field(:time, :time)
       field(:array_of_strings, {:array, :string})
       field(:money, Money.Ecto.Type)
       field(:multi_money, {:array, Money.Ecto.Type})
@@ -109,6 +110,7 @@ defmodule Ecto.DevLoggerTest do
         integer: 0,
         decimal: Decimal.from_float(0.12),
         date: Date.utc_today(),
+        time: Time.truncate(Time.utc_now(), :second),
         array_of_strings: ["single_word", "hello, comma", "hey 'quotes'", "hey \"quotes\""],
         money: %Money{currency: "USD", value: 390},
         multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
@@ -239,7 +241,7 @@ defmodule Ecto.DevLoggerTest do
 
       select_query_regex =
         (Regex.escape(
-           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
+           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
          ) <>
            "[-0-9a-fA-F]+" <>
            Regex.escape("'\e[36m)\e[90m"))
@@ -325,6 +327,7 @@ defmodule Ecto.DevLoggerTest do
         integer integer,
         decimal numeric,
         date date,
+        time time(0) without time zone,
         array_of_strings text[],
         money money_type,
         multi_money money_type[],
