@@ -69,6 +69,24 @@ defmodule Ecto.DevLoggerTest do
     end
   end
 
+  defmodule MACADDRType do
+    use Ecto.Type
+
+    def type, do: :inet
+    def cast(term), do: {:ok, term}
+    def dump(term), do: {:ok, term}
+    def load(term), do: {:ok, term}
+  end
+
+  defmodule InetType do
+    use Ecto.Type
+
+    def type, do: :inet
+    def cast(term), do: {:ok, term}
+    def dump(term), do: {:ok, term}
+    def load(term), do: {:ok, term}
+  end
+
   defmodule Post do
     use Ecto.Schema
 
@@ -87,6 +105,8 @@ defmodule Ecto.DevLoggerTest do
       field(:datetime, :utc_datetime_usec)
       field(:naive_datetime, :naive_datetime_usec)
       field(:password_digest, :string)
+      field(:ip, InetType)
+      field(:macaddr, MACADDRType)
     end
   end
 
@@ -116,7 +136,9 @@ defmodule Ecto.DevLoggerTest do
         multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
         datetime: DateTime.utc_now(),
         naive_datetime: NaiveDateTime.utc_now(),
-        password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd"
+        password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd",
+        ip: %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24},
+        macaddr: %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}
       })
 
     post = Repo.get!(Post, post_id)
@@ -241,7 +263,7 @@ defmodule Ecto.DevLoggerTest do
 
       select_query_regex =
         (Regex.escape(
-           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
+           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\", p0.\"ip\", p0.\"macaddr\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
          ) <>
            "[-0-9a-fA-F]+" <>
            Regex.escape("'\e[36m)\e[90m"))
@@ -333,7 +355,9 @@ defmodule Ecto.DevLoggerTest do
         multi_money money_type[],
         password_digest text,
         datetime timestamp without time zone NOT NULL,
-        naive_datetime timestamp without time zone NOT NULL
+        naive_datetime timestamp without time zone NOT NULL,
+        ip INET,
+        macaddr MACADDR
       )
       """,
       [],

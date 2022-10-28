@@ -279,7 +279,7 @@ defmodule Ecto.DevLogger do
   end
 
   defp stringify_ecto_params(%module{} = date, :root)
-       when module in [Date, Time, DateTime, NaiveDateTime] do
+       when module in [Date, Time, DateTime, NaiveDateTime, Postgrex.INET, Postgrex.MACADDR] do
     date |> stringify_ecto_params(:child) |> in_quotes()
   end
 
@@ -321,6 +321,26 @@ defmodule Ecto.DevLogger do
 
   defp stringify_ecto_params(list, :child) when is_list(list) do
     Jason.encode!(Enum.map(list, &stringify_ecto_params(&1, :child)))
+  end
+
+  defp stringify_ecto_params(macaddr, :child) when is_struct(macaddr, Postgrex.MACADDR) do
+    macaddr.address
+    |> Tuple.to_list()
+    |> Enum.map_join(":", fn value ->
+      value
+      |> Integer.to_string(16)
+      |> String.pad_leading(2, "0")
+    end)
+  end
+
+  defp stringify_ecto_params(inet, :child) when is_struct(inet, Postgrex.INET) do
+    netmask =
+      case inet.netmask do
+        nil -> ""
+        netmask -> "/#{netmask}"
+      end
+
+    "#{:inet.ntoa(inet.address)}#{netmask}"
   end
 
   defp in_quotes(string) do
