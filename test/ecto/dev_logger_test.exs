@@ -164,7 +164,7 @@ defmodule Ecto.DevLoggerTest do
                @return_to_color,
                Ecto.Adapters.Postgres
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{[\\\"test\\\"]}'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m RETURNING \"id\""
     end
 
     test "Tds" do
@@ -174,7 +174,7 @@ defmodule Ecto.DevLoggerTest do
                @return_to_color,
                Ecto.Adapters.Tds
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{[\\\"test\\\"]}'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m RETURNING \"id\""
     end
 
     test "MySQL" do
@@ -186,7 +186,7 @@ defmodule Ecto.DevLoggerTest do
                  Ecto.Adapters.MyXQL
                )
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{[\\\"test\\\"]}'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m RETURNING \"id\""
     end
   end
 
@@ -251,7 +251,7 @@ defmodule Ecto.DevLoggerTest do
       assert repo1_insert_status =~ ~r/\[debug\] QUERY OK db=\d+\.\d+ms/
 
       assert repo1_insert_query ==
-               "INSERT INTO \"posts\" (\"datetime\",\"naive_datetime\") VALUES (\e[38;5;31m'2022-06-25T14:30:16.639767Z'\e[32m,\e[38;5;31m'2022-06-25T14:30:16.643949'\e[32m) RETURNING \"id\"\e[90m"
+               "INSERT INTO \"posts\" (\"datetime\",\"naive_datetime\") VALUES (\e[38;5;31m'2022-06-25 14:30:16.639767Z'\e[32m,\e[38;5;31m'2022-06-25 14:30:16.643949'\e[32m) RETURNING \"id\"\e[90m"
 
       assert repo1_insert_location =~
                ~r/↳\ anonymous\ fn\/0\ in\ Ecto\.DevLoggerTest\."test\ multiple\ repos\ logging\ for\ two\ repos,\ with\ repo\ name"\/1,\ at:\ test\/ecto\/dev_logger_test\.exs:[0-9]+/

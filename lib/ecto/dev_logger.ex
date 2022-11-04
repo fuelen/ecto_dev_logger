@@ -106,7 +106,7 @@ defmodule Ecto.DevLogger do
         case Map.fetch(params_by_index, String.to_integer(index)) do
           {:ok, value} ->
             value
-            |> stringify_ecto_params(:root)
+            |> Ecto.DevLogger.PrintableParameter.to_expression()
             |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
 
           :error ->
@@ -128,7 +128,7 @@ defmodule Ecto.DevLogger do
         case Map.fetch(params_by_index, index) do
           {:ok, value} ->
             value
-            |> stringify_ecto_params(:root)
+            |> Ecto.DevLogger.PrintableParameter.to_expression()
             |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
 
           :error ->
@@ -228,123 +228,6 @@ defmodule Ecto.DevLogger do
     else
       term
     end
-  end
-
-  defp stringify_ecto_params(nil, _level), do: "NULL"
-
-  defp stringify_ecto_params(binding, _level)
-       when is_float(binding) or is_integer(binding) or is_atom(binding),
-       do: to_string(binding)
-
-  defp stringify_ecto_params(%Decimal{} = binding, _level), do: to_string(binding)
-
-  defp stringify_ecto_params(binding, level) when is_binary(binding) do
-    string =
-      with <<_::128>> <- binding,
-           {:ok, string} <- Ecto.UUID.load(binding) do
-        string
-      else
-        _ -> binding
-      end
-
-    case level do
-      :root ->
-        if String.valid?(string) do
-          in_quotes(string)
-        else
-          "DECODE('#{Base.encode64(string)}', 'BASE64')"
-        end
-
-      :child ->
-        string
-    end
-  end
-
-  defp stringify_ecto_params(binding, :root) when is_list(binding) do
-    in_quotes(
-      "{" <>
-        Enum.map_join(binding, ",", fn item ->
-          string =
-            item
-            |> stringify_ecto_params(:child)
-            |> String.replace("\"", "\\\"")
-
-          if Enum.any?([",", "{", "}"], fn symbol -> String.contains?(string, symbol) end) do
-            "\"#{string}\""
-          else
-            string
-          end
-        end) <> "}"
-    )
-  end
-
-  defp stringify_ecto_params(%module{} = date, :root)
-       when module in [Date, Time, DateTime, NaiveDateTime, Postgrex.INET, Postgrex.MACADDR] do
-    date |> stringify_ecto_params(:child) |> in_quotes()
-  end
-
-  defp stringify_ecto_params(%{} = map, :root) when not is_struct(map) do
-    map |> stringify_ecto_params(:child) |> in_quotes()
-  end
-
-  defp stringify_ecto_params(composite, level) when is_tuple(composite) do
-    values =
-      composite
-      |> Tuple.to_list()
-      |> Enum.map_join(",", &stringify_ecto_params(&1, :child))
-
-    case level do
-      :root -> in_quotes("(#{values})")
-      :child -> "(#{values})"
-    end
-  end
-
-  defp stringify_ecto_params(%Date{} = date, :child) do
-    to_string(date)
-  end
-
-  defp stringify_ecto_params(%Time{} = time, :child) do
-    to_string(time)
-  end
-
-  defp stringify_ecto_params(%NaiveDateTime{} = datetime, :child) do
-    NaiveDateTime.to_iso8601(datetime)
-  end
-
-  defp stringify_ecto_params(%DateTime{} = datetime, :child) do
-    DateTime.to_iso8601(datetime)
-  end
-
-  defp stringify_ecto_params(%{} = map, :child) when not is_struct(map) do
-    Jason.encode!(map)
-  end
-
-  defp stringify_ecto_params(list, :child) when is_list(list) do
-    Jason.encode!(Enum.map(list, &stringify_ecto_params(&1, :child)))
-  end
-
-  defp stringify_ecto_params(macaddr, :child) when is_struct(macaddr, Postgrex.MACADDR) do
-    macaddr.address
-    |> Tuple.to_list()
-    |> Enum.map_join(":", fn value ->
-      value
-      |> Integer.to_string(16)
-      |> String.pad_leading(2, "0")
-    end)
-  end
-
-  defp stringify_ecto_params(inet, :child) when is_struct(inet, Postgrex.INET) do
-    netmask =
-      case inet.netmask do
-        nil -> ""
-        netmask -> "/#{netmask}"
-      end
-
-    "#{:inet.ntoa(inet.address)}#{netmask}"
-  end
-
-  defp in_quotes(string) do
-    "'#{String.replace(string, "'", "''")}'"
   end
 
   defp log_stacktrace(stacktrace, repo) do
