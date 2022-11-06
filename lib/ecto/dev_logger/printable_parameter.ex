@@ -6,7 +6,7 @@ defprotocol Ecto.DevLogger.PrintableParameter do
 
   `Ecto.DevLogger` tries to represent complex terms, like arrays (lists) and composite types (tuples)
   as string literal first. Not all terms are easy/efficient/whatever to represent as strings, so if
-  for all elemements inside the array `to_string_literal/1` returns a string,
+  `to_string_literal/1` returns a string for all elements inside the array,
   then array will be represented as string as well. Otherwise, array will be represented using `ARRAY` constructor:
 
       iex> Ecto.DevLogger.PrintableParameter.to_expression(["Elixir", "Ecto"])
