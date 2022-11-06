@@ -1,5 +1,7 @@
 # Ecto.DevLogger
 
+[![Hex.pm](https://img.shields.io/hexpm/v/ecto_dev_logger.svg)](https://hex.pm/packages/ecto_dev_logger)
+
 An alternative logger for Ecto queries.
 
 It inlines bindings into the query, so it is easy to copy-paste logged SQL and run it in any IDE for debugging without
