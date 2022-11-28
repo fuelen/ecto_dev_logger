@@ -59,10 +59,15 @@ defmodule Ecto.DevLogger.Utils do
 end
 
 defimpl Ecto.DevLogger.PrintableParameter, for: Atom do
-  def to_expression(atom), do: to_string_literal(atom)
+  def to_expression(nil), do: "NULL"
+  def to_expression(true), do: "true"
+  def to_expression(false), do: "false"
+  def to_expression(atom), do: atom |> Atom.to_string() |> Ecto.DevLogger.Utils.in_string_quotes()
+
   def to_string_literal(nil), do: "NULL"
   def to_string_literal(true), do: "true"
   def to_string_literal(false), do: "false"
+  def to_string_literal(atom), do: Atom.to_string(atom)
 end
 
 defimpl Ecto.DevLogger.PrintableParameter, for: Map do

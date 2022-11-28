@@ -11,6 +11,10 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
     assert to_expression(true) == "true"
     assert to_expression(false) == "false"
 
+    # Atom
+    assert to_expression(:hey) == "'hey'"
+    assert to_expression(:hey@hey) == "'hey@hey'"
+
     # Integer
     assert to_expression(-123) == "-123"
     assert to_expression(123) == "123"
@@ -61,6 +65,7 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
     assert to_expression([1, 2, 3, nil]) == ~s|'{1,2,3,NULL}'|
     assert to_expression([1.2, 2.3, 3.4]) == "'{1.2,2.3,3.4}'"
     assert to_expression(["abc", "DFG", "NULL", ""]) == ~s|'{abc,DFG,"NULL",""}'|
+    assert to_expression([:hello, :world]) == ~s|'{hello,world}'|
     assert to_expression(["single quote:'"]) == "'{single quote:''}'"
     assert to_expression(["double quote:\""]) == ~s|'{double quote:\\"}'|
     assert to_expression(["{", "}", ","]) == ~s|'{"{","}",","}'|
