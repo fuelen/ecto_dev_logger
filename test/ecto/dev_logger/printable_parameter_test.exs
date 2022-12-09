@@ -1,5 +1,5 @@
 defmodule Ecto.DevLogger.PrintableParameterTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest Ecto.DevLogger.PrintableParameter
   import Ecto.DevLogger.PrintableParameter
 
@@ -42,7 +42,7 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
              "boolean" => true,
              "integer" => 1,
              "array" => [1, 2, 3]
-           }) == ~s|{"array":[1,2,3],"boolean":true,"integer":1,"string":"string"}|
+           }) == ~s|'{"array":[1,2,3],"boolean":true,"integer":1,"string":"string"}'|
 
     # UUID-like binary
     assert to_expression(
