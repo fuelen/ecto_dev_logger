@@ -60,6 +60,13 @@ defmodule Ecto.DevLogger do
   defp schema_migration?(metadata) do
     metadata[:options][:schema_migration] == true
   end
+  
+  defp config_ignore?(config, metadata) do
+    case Keyword.get(config, :ignore_metadata) do
+      ignore_metadata when is_function(ignore_metadata, 1) -> ignore_metadata.(metadata)
+      _ -> false
+    end
+  end
 
   @doc "Telemetry handler which logs queries."
   @spec telemetry_handler(
@@ -69,7 +76,7 @@ defmodule Ecto.DevLogger do
           :telemetry.handler_config()
         ) :: :ok
   def telemetry_handler(_event_name, measurements, metadata, config) do
-    if oban_query?(metadata) or schema_migration?(metadata) do
+    if oban_query?(metadata) or schema_migration?(metadata) or config_ignore?(config, metadata) do
       :ok
     else
       query = String.Chars.to_string(metadata.query)
