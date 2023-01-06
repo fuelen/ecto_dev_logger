@@ -71,7 +71,10 @@ defimpl Ecto.DevLogger.PrintableParameter, for: Atom do
 end
 
 defimpl Ecto.DevLogger.PrintableParameter, for: Map do
-  def to_expression(map), do: map |> to_string_literal() |> Ecto.DevLogger.Utils.in_string_quotes()
+  def to_expression(map) do
+    map |> to_string_literal() |> Ecto.DevLogger.Utils.in_string_quotes()
+  end
+
   def to_string_literal(map), do: Jason.encode!(map)
 end
 

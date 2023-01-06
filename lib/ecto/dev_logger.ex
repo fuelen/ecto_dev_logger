@@ -9,6 +9,8 @@ defmodule Ecto.DevLogger do
 
   require Logger
 
+  @type option :: {:log_repo_name, boolean()} | {:ignore_event, (metadata :: map() -> boolean())}
+
   @doc """
   Attaches `telemetry_handler/4` to application.
 
@@ -16,9 +18,12 @@ defmodule Ecto.DevLogger do
 
   ## Options
 
-  * `:log_repo_name` - When truthy will add the repo name into the log
+  * `:log_repo_name` - when truthy will add the repo name into the log.
+  * `:ignore_event` - a callback which allows to skip some telemetry events thus skip printing logs.
+  By default, the library ignores events from `Oban` and events related to migration queries.
+  These checks are not overridable by `:ignore_event` callback and have priority over it.
   """
-  @spec install(repo_module :: module(), opts :: Keyword.t()) :: :ok | {:error, :already_exists}
+  @spec install(repo_module :: module(), opts :: [option()]) :: :ok | {:error, :already_exists}
   def install(repo_module, opts \\ []) when is_atom(repo_module) do
     config = repo_module.config()
 
@@ -61,15 +66,22 @@ defmodule Ecto.DevLogger do
     metadata[:options][:schema_migration] == true
   end
 
+  defp ignore_event?(config, metadata) do
+    oban_query?(metadata) or schema_migration?(metadata) or
+      (config[:ignore_event] || (&always_false/1)).(metadata)
+  end
+
+  defp always_false(_), do: false
+
   @doc "Telemetry handler which logs queries."
   @spec telemetry_handler(
           :telemetry.event_name(),
           :telemetry.event_measurements(),
           :telemetry.event_metadata(),
-          :telemetry.handler_config()
+          [option()]
         ) :: :ok
   def telemetry_handler(_event_name, measurements, metadata, config) do
-    if oban_query?(metadata) or schema_migration?(metadata) do
+    if ignore_event?(config, metadata) do
       :ok
     else
       query = String.Chars.to_string(metadata.query)
