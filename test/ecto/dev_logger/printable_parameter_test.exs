@@ -61,6 +61,7 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
     assert to_expression(%Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}) == "'08:01:2B:05:07:09'"
 
     # List
+    assert to_expression([]) == "'{}'"
     assert to_expression([1, 2, 3]) == "'{1,2,3}'"
     assert to_expression([1, 2, 3, nil]) == ~s|'{1,2,3,NULL}'|
     assert to_expression([1.2, 2.3, 3.4]) == "'{1.2,2.3,3.4}'"
@@ -89,6 +90,13 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
 
     assert to_expression([%Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}]) ==
              "'{08:01:2B:05:07:09}'"
+
+    # List of lexemes is considered as tsvector
+    assert to_expression([
+             %Postgrex.Lexeme{word: "Joe's", positions: [{5, :D}]},
+             %Postgrex.Lexeme{word: "foo", positions: [{1, :A}, {3, :B}, {2, nil}]},
+             %Postgrex.Lexeme{word: "bar", positions: []}
+           ]) == "'''Joe''''s'':5 foo:1A,3B,2 bar'"
 
     assert to_expression([%{}, %{}]) == ~s|'{"{}","{}"}'|
     assert to_expression([{1, "USD"}, {2, "USD"}]) == ~s|'{"(1,USD)","(2,USD)"}'|

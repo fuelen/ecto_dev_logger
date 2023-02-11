@@ -226,29 +226,46 @@ defimpl Ecto.DevLogger.PrintableParameter, for: List do
       :error ->
         nil
 
-      {:ok, list} ->
-        body =
-          Enum.map_join(list, ",", fn {element, string_literal} ->
-            cond do
-              is_list(element) or is_nil(element) ->
-                string_literal
-
-              element == "" ->
-                ~s|""|
-
-              true ->
-                string = String.replace(string_literal, "\"", "\\\"")
-
-                if String.downcase(string) == "null" or String.contains?(string, [",", "{", "}"]) do
-                  ~s|"#{string}"|
-                else
-                  string
-                end
-            end
+      {:ok, elements_with_string_literals} ->
+        if tsvector?(list) do
+          Enum.map_join(elements_with_string_literals, " ", fn {_element, string_literal} ->
+            string_literal
           end)
+        else
+          body =
+            Enum.map_join(elements_with_string_literals, ",", fn {element, string_literal} ->
+              cond do
+                is_list(element) or is_nil(element) ->
+                  string_literal
 
-        "{" <> body <> "}"
+                element == "" ->
+                  ~s|""|
+
+                true ->
+                  string = String.replace(string_literal, "\"", "\\\"")
+
+                  if String.downcase(string) == "null" or
+                       String.contains?(string, [",", "{", "}"]) do
+                    ~s|"#{string}"|
+                  else
+                    string
+                  end
+              end
+            end)
+
+          "{" <> body <> "}"
+        end
     end
+  end
+
+  # tsvector is a list of lexemes.
+  # By checking only the first element we assume that the others are also lexemes.
+  defp tsvector?([%{__struct__: Postgrex.Lexeme} | _]) do
+    true
+  end
+
+  defp tsvector?(_list) do
+    false
   end
 end
 
@@ -288,6 +305,40 @@ if Code.ensure_loaded?(Postgrex.INET) do
         end
 
       "#{:inet.ntoa(inet.address)}#{netmask}"
+    end
+  end
+end
+
+if Code.ensure_loaded?(Postgrex.Lexeme) do
+  defimpl Ecto.DevLogger.PrintableParameter, for: Postgrex.Lexeme do
+    def to_expression(lexeme) do
+      raise "Invalid parameter: #{lexeme} must be inside a list"
+    end
+
+    def to_string_literal(lexeme) do
+      word =
+        if String.contains?(lexeme.word, [",", "'", " ", ":"]) do
+          Ecto.DevLogger.Utils.in_string_quotes(lexeme.word)
+        else
+          lexeme.word
+        end
+
+      case lexeme.positions do
+        [] ->
+          word
+
+        positions ->
+          positions =
+            Enum.map_join(positions, ",", fn {position, weight} ->
+              if weight in [nil, :D] do
+                Integer.to_string(position)
+              else
+                [Integer.to_string(position), Atom.to_string(weight)]
+              end
+            end)
+
+          "#{word}:#{positions}"
+      end
     end
   end
 end
