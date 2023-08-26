@@ -78,6 +78,16 @@ defimpl Ecto.DevLogger.PrintableParameter, for: Map do
   def to_string_literal(map), do: Jason.encode!(map)
 end
 
+if Code.ensure_loaded?(Geo.Point) do
+  defimpl Ecto.DevLogger.PrintableParameter, for: Geo.Point do
+    def to_expression(point) do
+      point |> to_string_literal() |> Ecto.DevLogger.Utils.in_string_quotes()
+    end
+
+    def to_string_literal(point), do: Jason.encode!(point)
+  end
+end
+
 defimpl Ecto.DevLogger.PrintableParameter, for: Tuple do
   def to_expression(tuple) do
     case to_string_literal(tuple) do
