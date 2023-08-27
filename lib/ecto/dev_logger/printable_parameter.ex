@@ -84,7 +84,7 @@ if Code.ensure_loaded?(Geo.Point) do
       point |> to_string_literal() |> Ecto.DevLogger.Utils.in_string_quotes()
     end
 
-    def to_string_literal(point), do: Jason.encode!(point)
+    def to_string_literal(point), do: inspect(point, pretty: true)
   end
 end
 
