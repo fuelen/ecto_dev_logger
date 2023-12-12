@@ -117,9 +117,16 @@ defmodule Ecto.DevLogger do
       <<_prefix::utf8, index::binary>> = replacement ->
         case Map.fetch(params_by_index, String.to_integer(index)) do
           {:ok, value} ->
-            value
-            |> Ecto.DevLogger.PrintableParameter.to_expression()
-            |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
+            try do
+              value
+              |> Ecto.DevLogger.PrintableParameter.to_expression()
+              |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
+            rescue
+              Protocol.UndefinedError ->
+                value
+                |> inspect()
+                |> colorize(IO.ANSI.color(5, 0, 0), apply(IO.ANSI, return_to_color, []))
+            end
 
           :error ->
             replacement
