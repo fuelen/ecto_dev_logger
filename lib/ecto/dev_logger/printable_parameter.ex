@@ -289,6 +289,16 @@ if Code.ensure_loaded?(Postgrex.MACADDR) do
   end
 end
 
+if Code.ensure_loaded?(Postgrex.Interval) do
+  defimpl Ecto.DevLogger.PrintableParameter, for: Postgrex.Interval do
+    def to_expression(struct),
+      do: Postgrex.Interval.to_string(struct) |> Ecto.DevLogger.Utils.in_string_quotes()
+
+    def to_string_literal(struct),
+      do: Postgrex.Interval.to_string(struct)
+  end
+end
+
 if Code.ensure_loaded?(Postgrex.INET) do
   defimpl Ecto.DevLogger.PrintableParameter, for: Postgrex.INET do
     def to_expression(inet) do
