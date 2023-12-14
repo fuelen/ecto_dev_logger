@@ -39,3 +39,37 @@ That's it.
 
 The docs can be found at [https://hexdocs.pm/ecto_dev_logger](https://hexdocs.pm/ecto_dev_logger).
 
+### Development Only Installation
+
+If you turn off repo logging for any reason in production, you can configure `ecto_dev_logger` to *only* be available
+in development. In your `mix.exs`, restrict the installation to `:dev`:
+
+```elixir
+def deps do
+  [
+    {:ecto_dev_logger, "~> 0.10", only: :dev}
+  ]
+end
+```
+
+In `MyApp.Application`, an additional function is required:
+
+```elixir
+defmodule MyApp.Application
+  @moduledoc "..."
+
+  def start(_type, _args) do
+    maybe_install_ecto_dev_logger()
+
+    # ...
+  end
+
+  if Code.ensure_loaded?(Ecto.DevLogger) do
+    defp maybe_install_ecto_dev_logger, do: Ecto.DevLogger.install(MyApp.Repo)
+  else
+    defp maybe_install_ecto_dev_logger, do: :ok
+  end
+
+  # ...
+end
+```
