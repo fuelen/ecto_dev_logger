@@ -18,7 +18,7 @@ defmodule Ecto.DevLogger.MixProject do
         extras: ["README.md": [title: "README"]],
         source_url: @source_url,
         source_ref: "v#{@version}",
-        assets: "assets"
+        assets: %{"assets" => "assets"}
       ]
     ]
   end
