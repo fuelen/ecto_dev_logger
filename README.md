@@ -33,7 +33,7 @@ And install telemetry handler in `MyApp.Application`:
 ```elixir
 Ecto.DevLogger.install(MyApp.Repo)
 ```
-Telemetry handler will be installed only if `log` configuration value is set to `false`.
+Telemetry handler will be installed *only* if `log` configuration value is set to `false`.
 
 That's it.
 
@@ -55,7 +55,7 @@ end
 In `MyApp.Application`, an additional function is required:
 
 ```elixir
-defmodule MyApp.Application
+defmodule MyApp.Application do
   @moduledoc "..."
 
   def start(_type, _args) do
@@ -71,5 +71,24 @@ defmodule MyApp.Application
   end
 
   # ...
+end
+```
+
+### Format queries
+
+It is possible to format queries using a `:before_inline_callback` option.
+Here is an example of setup using [pgFormatter](https://github.com/darold/pgFormatter) as an external utility:
+```elixir
+defmodule MyApp.Application do
+  def start(_type, _args) do
+    Ecto.DevLogger.install(MyApp.Repo, before_inline_callback: &__MODULE__.format_sql_query/1)
+  end
+
+  def format_sql_query(query) do
+    case System.shell("echo $SQL_QUERY | pg_format -", env: [{"SQL_QUERY", query}], stderr_to_stdout: true) do
+      {formatted_query, 0} -> String.trim_trailing(formatted_query)
+      _ -> query
+    end
+  end
 end
 ```
