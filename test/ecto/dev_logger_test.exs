@@ -250,7 +250,9 @@ defmodule Ecto.DevLoggerTest do
 
       ## Confirm that the original repo's logging is not changed by the addition of a second repo
       assert repo1_insert_start == "\e[32m"
-      assert repo1_insert_status =~ ~r/\[debug\] QUERY OK db=\d+\.\d+ms/
+
+      assert repo1_insert_status =~
+               ~r/\[debug\] QUERY OK source=\e\[34m\"posts\"\e\[32m db=\d+\.\d+ms/
 
       assert repo1_insert_query ==
                "INSERT INTO \"posts\" (\"datetime\",\"naive_datetime\") VALUES (\e[38;5;31m'2022-06-25 14:30:16.639767Z'\e[32m,\e[38;5;31m'2022-06-25 14:30:16.643949'\e[32m) RETURNING \"id\"\e[90m"
@@ -304,7 +306,7 @@ defmodule Ecto.DevLoggerTest do
       assert repo2_insert_start == repo1_insert_start
 
       assert repo2_insert_status =~
-               ~r/\[debug\] QUERY OK repo=\e\[34mEcto.DevLoggerTest.Repo2\e\[\d+m db=\d+\.\d+ms/
+               ~r/\[debug\] QUERY OK source=\e\[34m\"posts\"\e\[32m repo=\e\[34mEcto.DevLoggerTest.Repo2\e\[32m db=\d+\.\d+ms/
 
       assert repo2_insert_query == repo1_insert_query
 
@@ -331,7 +333,9 @@ defmodule Ecto.DevLoggerTest do
     repo_module.__adapter__().storage_up(config)
     repo_pid = start_supervised!(repo_module)
 
-    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [], log: log_sql_statements)
+    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [],
+      log: log_sql_statements
+    )
 
     repo_module.query!(
       """
