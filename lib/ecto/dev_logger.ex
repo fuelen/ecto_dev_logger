@@ -22,6 +22,8 @@ defmodule Ecto.DevLogger do
   * `:ignore_event` - a callback which allows to skip some telemetry events thus skip printing logs.
   By default, the library ignores events from `Oban` and events related to migration queries.
   These checks are not overridable by `:ignore_event` callback and have priority over it.
+  * `:before_inline_callback` - a callback which allows to modify the query before inlining of bindings.
+  You can use this option to format the query using external utility, like `pgformatter`, etc.
   """
   @spec install(repo_module :: module(), opts :: [option()]) :: :ok | {:error, :already_exists}
   def install(repo_module, opts \\ []) when is_atom(repo_module) do
@@ -87,10 +89,12 @@ defmodule Ecto.DevLogger do
       query = String.Chars.to_string(metadata.query)
       color = sql_color(query)
       repo_adapter = metadata[:repo].__adapter__()
+      before_inline_callback = config[:before_inline_callback] || (&Function.identity/1)
 
       Logger.debug(
         fn ->
           query
+          |> before_inline_callback.()
           |> inline_params(metadata.params, color, repo_adapter)
           |> log_sql_iodata(measurements, metadata, color, config)
         end,
@@ -117,9 +121,16 @@ defmodule Ecto.DevLogger do
       <<_prefix::utf8, index::binary>> = replacement ->
         case Map.fetch(params_by_index, String.to_integer(index)) do
           {:ok, value} ->
-            value
-            |> Ecto.DevLogger.PrintableParameter.to_expression()
-            |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
+            try do
+              value
+              |> Ecto.DevLogger.PrintableParameter.to_expression()
+              |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
+            rescue
+              Protocol.UndefinedError ->
+                value
+                |> inspect()
+                |> colorize(IO.ANSI.color(5, 0, 0), apply(IO.ANSI, return_to_color, []))
+            end
 
           :error ->
             replacement

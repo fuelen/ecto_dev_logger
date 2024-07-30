@@ -60,6 +60,9 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
     assert to_expression(%Postgrex.INET{address: {127, 0, 0, 1}, netmask: nil}) == "'127.0.0.1'"
     assert to_expression(%Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}) == "'08:01:2B:05:07:09'"
 
+    assert to_expression(%Postgrex.Interval{months: 1, days: 2, secs: 34}) ==
+             "'1 month, 2 days, 34 seconds'"
+
     # List
     assert to_expression([]) == "'{}'"
     assert to_expression([1, 2, 3]) == "'{1,2,3}'"

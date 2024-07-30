@@ -107,6 +107,7 @@ defmodule Ecto.DevLoggerTest do
       field(:password_digest, :string)
       field(:ip, InetType)
       field(:macaddr, MACADDRType)
+      field(:enum, {:array, Ecto.Enum}, values: [foo: 1, bar: 2, baz: 5])
     end
   end
 
@@ -138,7 +139,8 @@ defmodule Ecto.DevLoggerTest do
         naive_datetime: NaiveDateTime.utc_now(),
         password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd",
         ip: %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24},
-        macaddr: %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}
+        macaddr: %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}},
+        enum: [:foo, :baz]
       })
 
     post = Repo.get!(Post, post_id)
@@ -248,7 +250,9 @@ defmodule Ecto.DevLoggerTest do
 
       ## Confirm that the original repo's logging is not changed by the addition of a second repo
       assert repo1_insert_start == "\e[32m"
-      assert repo1_insert_status =~ ~r/\[debug\] QUERY OK db=\d+\.\d+ms/
+
+      assert repo1_insert_status =~
+               ~r/\[debug\] QUERY OK source=\e\[34m\"posts\"\e\[32m db=\d+\.\d+ms/
 
       assert repo1_insert_query ==
                "INSERT INTO \"posts\" (\"datetime\",\"naive_datetime\") VALUES (\e[38;5;31m'2022-06-25 14:30:16.639767Z'\e[32m,\e[38;5;31m'2022-06-25 14:30:16.643949'\e[32m) RETURNING \"id\"\e[90m"
@@ -263,7 +267,7 @@ defmodule Ecto.DevLoggerTest do
 
       select_query_regex =
         (Regex.escape(
-           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\", p0.\"ip\", p0.\"macaddr\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
+           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\", p0.\"ip\", p0.\"macaddr\", p0.\"enum\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
          ) <>
            "[-0-9a-fA-F]+" <>
            Regex.escape("'\e[36m)\e[90m"))
@@ -302,7 +306,7 @@ defmodule Ecto.DevLoggerTest do
       assert repo2_insert_start == repo1_insert_start
 
       assert repo2_insert_status =~
-               ~r/\[debug\] QUERY OK repo=\e\[34mEcto.DevLoggerTest.Repo2\e\[\d+m db=\d+\.\d+ms/
+               ~r/\[debug\] QUERY OK source=\e\[34m\"posts\"\e\[32m repo=\e\[34mEcto.DevLoggerTest.Repo2\e\[32m db=\d+\.\d+ms/
 
       assert repo2_insert_query == repo1_insert_query
 
@@ -329,7 +333,9 @@ defmodule Ecto.DevLoggerTest do
     repo_module.__adapter__().storage_up(config)
     repo_pid = start_supervised!(repo_module)
 
-    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [], log: log_sql_statements)
+    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [],
+      log: log_sql_statements
+    )
 
     repo_module.query!(
       """
@@ -357,7 +363,8 @@ defmodule Ecto.DevLoggerTest do
         datetime timestamp without time zone NOT NULL,
         naive_datetime timestamp without time zone NOT NULL,
         ip INET,
-        macaddr MACADDR
+        macaddr MACADDR,
+        enum integer[]
       )
       """,
       [],

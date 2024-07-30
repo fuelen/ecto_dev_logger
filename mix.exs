@@ -1,6 +1,6 @@
 defmodule Ecto.DevLogger.MixProject do
   use Mix.Project
-  @version "0.9.0"
+  @version "0.11.0"
   @source_url "https://github.com/fuelen/ecto_dev_logger"
 
   def project do
@@ -18,7 +18,7 @@ defmodule Ecto.DevLogger.MixProject do
         extras: ["README.md": [title: "README"]],
         source_url: @source_url,
         source_ref: "v#{@version}",
-        assets: "assets"
+        assets: %{"assets" => "assets"}
       ]
     ]
   end
