@@ -41,10 +41,13 @@ defmodule Ecto.DevLogger.MixProject do
   defp deps do
     [
       {:ecto, "~> 3.7"},
+      {:jason, "~> 1.0"},
+
+      {:ex_doc, "~> 0.28", only: :dev, runtime: false},
+
       {:ecto_sql, "~> 3.7", only: :test},
       {:postgrex, "~> 0.16", only: :test},
-      {:jason, "~> 1.0"},
-      {:ex_doc, "~> 0.28", only: :dev, runtime: false}
+      {:geo, "~> 3.5.1", optional: true},
     ]
   end
 end

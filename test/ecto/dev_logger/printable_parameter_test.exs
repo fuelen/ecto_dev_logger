@@ -91,6 +91,12 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
              %Postgrex.INET{address: {127, 0, 0, 1}, netmask: nil}
            ]) == "'{127.0.0.1/24,127.0.0.1}'"
 
+    assert to_expression([%Geo.Point{coordinates: {44.21587, -87.5947}, srid: 4326, properties: %{}}]) ==
+      "'{\"{\\\"coordinates\\\":[44.21587,-87.5947],\\\"crs\\\":{\\\"properties\\\":{\\\"name\\\":\\\"EPSG:4326\\\"},\\\"type\\\":\\\"name\\\"},\\\"type\\\":\\\"Point\\\"}\"}'"
+
+    assert to_expression([%Geo.Polygon{coordinates: [[{2.20, 41.41}, {2.13, 41.41}, {2.13, 41.35}, {2.20, 41.35}, {2.20, 41.41}]], srid: nil, properties: %{}}]) ==
+      "'{\"{\\\"coordinates\\\":[[[2.2,41.41],[2.13,41.41],[2.13,41.35],[2.2,41.35],[2.2,41.41]]],\\\"type\\\":\\\"Polygon\\\"}\"}'"
+
     assert to_expression([%Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}]) ==
              "'{08:01:2B:05:07:09}'"
 
