@@ -47,7 +47,7 @@ defmodule Ecto.DevLogger.MixProject do
 
       {:ecto_sql, "~> 3.7", only: :test},
       {:postgrex, "~> 0.16", only: :test},
-      {:geo, "~> 3.5.1", only: :test},
+      {:geo, "~> 3.5.1", optional: true},
     ]
   end
 end
