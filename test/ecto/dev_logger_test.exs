@@ -333,9 +333,7 @@ defmodule Ecto.DevLoggerTest do
     repo_module.__adapter__().storage_up(config)
     repo_pid = start_supervised!(repo_module)
 
-    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [],
-      log: log_sql_statements
-    )
+    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [], log: log_sql_statements)
 
     repo_module.query!(
       """
