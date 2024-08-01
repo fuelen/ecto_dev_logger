@@ -136,6 +136,6 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
              integers: [1, 2, 3, 4],
              atoms: [:one, :two, :three, :four]
            }) ==
-             "{1/*one*/,2/*two*/,3/*three*/,4/*four*/}"
+             "{1,2,3,4}/*one,two,three,four*/"
   end
 end

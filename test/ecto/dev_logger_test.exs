@@ -172,7 +172,7 @@ defmodule Ecto.DevLoggerTest do
       log = capture_log(fn -> Repo.insert!(%Post{enum: [:foo, :baz]}) end)
 
       assert strip_ansi(log) =~
-               ~S|INSERT INTO "posts" ("enum") VALUES ({1/*foo*/,5/*baz*/}) RETURNING "id"|
+               ~S|INSERT INTO "posts" ("enum") VALUES ({1,5}/*foo,baz*/) RETURNING "id"|
     end
   end
 

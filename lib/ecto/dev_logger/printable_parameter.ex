@@ -379,12 +379,8 @@ defimpl Ecto.DevLogger.PrintableParameter, for: Ecto.DevLogger.DBEnum do
   end
 
   def to_string_literal(dbenum) do
-    body =
-      Enum.zip(dbenum.integers, dbenum.atoms)
-      |> Enum.map_join(",", fn {integer, atom} ->
-        "#{integer}/*#{atom}*/"
-      end)
-
-    "{" <> body <> "}"
+    body = Enum.map_join(dbenum.integers, ",", &Integer.to_string/1)
+    comment = Enum.map_join(dbenum.atoms, ",", &Atom.to_string/1)
+    "{" <> body <> "}/*" <> comment <> "*/"
   end
 end
