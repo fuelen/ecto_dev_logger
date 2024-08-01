@@ -124,28 +124,42 @@ defmodule Ecto.DevLoggerTest do
   end
 
   test "everything" do
-    %{id: post_id} =
-      Repo.insert!(%Post{
-        string: "Post '1'",
-        binary:
-          <<246, 229, 61, 115, 2, 108, 128, 33, 102, 144, 102, 55, 125, 237, 142, 40, 217, 225,
-            234, 79, 134, 83, 85, 94, 218, 15, 55, 38, 39>>,
-        map: %{test: true, string: "\"'"},
-        integer: 0,
-        decimal: Decimal.from_float(0.12),
-        date: Date.utc_today(),
-        time: Time.truncate(Time.utc_now(), :second),
-        array_of_strings: ["single_word", "hello, comma", "hey 'quotes'", "hey \"quotes\""],
-        money: %Money{currency: "USD", value: 390},
-        multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
-        datetime: DateTime.utc_now(),
-        naive_datetime: NaiveDateTime.utc_now(),
-        password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd",
-        ip: %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24},
-        macaddr: %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}},
-        array_of_enums: [:foo, :baz],
-        enum: :bar
-      })
+    datetime = ~U[2024-08-01 21:23:53.845311Z]
+    naive_datetime = ~N[2024-08-01 21:23:53.846380]
+    date = ~D[2024-08-01]
+    time = ~T[21:23:53]
+
+    post = %Post{
+      string: "Post '1'",
+      binary:
+        <<246, 229, 61, 115, 2, 108, 128, 33, 102, 144, 102, 55, 125, 237, 142, 40, 217, 225, 234,
+          79, 134, 83, 85, 94, 218, 15, 55, 38, 39>>,
+      map: %{test: true, string: "\"'"},
+      integer: 0,
+      decimal: Decimal.from_float(0.12),
+      date: date,
+      time: time,
+      array_of_strings: ["single_word", "hello, comma", "hey 'quotes'", "hey \"quotes\""],
+      money: %Money{currency: "USD", value: 390},
+      multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
+      datetime: datetime,
+      naive_datetime: naive_datetime,
+      password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd",
+      ip: %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24},
+      macaddr: %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}},
+      array_of_enums: [:foo, :baz],
+      enum: :bar
+    }
+
+    {%{id: post_id}, log} = with_log(fn -> Repo.insert!(post) end)
+    IO.puts(log)
+
+    query =
+      "INSERT INTO \"posts\" (\"binary\",\"integer\",\"date\",\"time\",\"string\",\"map\",\"enum\",\"ip\",\"decimal\",\"array_of_strings\",\"money\",\"multi_money\",\"datetime\",\"naive_datetime\",\"password_digest\",\"macaddr\",\"array_of_enums\") VALUES (DECODE('9uU9cwJsgCFmkGY3fe2OKNnh6k+GU1Ve2g83Jic=','BASE64'),0,'2024-08-01','21:23:53','Post ''1''','{\"string\":\"\\\"''\",\"test\":true}',2/*bar*/,'127.0.0.1/24',0.12,'{single_word,\"hello, comma\",hey ''quotes'',hey \\\"quotes\\\"}','(USD,390)','{\"(USD,230)\",\"(USD,180)\"}','2024-08-01 21:23:53.845311Z','2024-08-01 21:23:53.846380','$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd','08:01:2B:05:07:09',ARRAY[1/*foo*/,5/*baz*/]) RETURNING \"id\""
+
+    assert %Postgrex.Result{} = Ecto.Adapters.SQL.query!(Repo, query, [])
+
+    assert strip_ansi(log) =~ query
 
     post = Repo.get!(Post, post_id)
     post = post |> Ecto.Changeset.change(string: nil) |> Repo.update!()
