@@ -83,8 +83,6 @@ defmodule Ecto.DevLogger do
           [option()]
         ) :: :ok
   def telemetry_handler(_event_name, measurements, metadata, config) do
-    params = preprocess_params(metadata)
-
     if ignore_event?(config, metadata) do
       :ok
     else
@@ -92,6 +90,7 @@ defmodule Ecto.DevLogger do
       color = sql_color(query)
       repo_adapter = metadata[:repo].__adapter__()
       before_inline_callback = config[:before_inline_callback] || (&Function.identity/1)
+      params = preprocess_params(metadata)
 
       Logger.debug(
         fn ->

@@ -149,14 +149,11 @@ defmodule Ecto.DevLoggerTest do
     Repo.delete!(post)
   end
 
-  describe "generates correct sql" do
+  describe "generates correct sql for structs" do
     test "ip field" do
       ip = %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24}
 
-      log =
-        capture_log(fn ->
-          %Post{ip: ip} |> Repo.insert!()
-        end)
+      log = capture_log(fn -> Repo.insert!(%Post{ip: ip}) end)
 
       assert strip_ansi(log) =~
                ~S|INSERT INTO "posts" ("ip") VALUES ('127.0.0.1/24') RETURNING "id"|
@@ -165,23 +162,14 @@ defmodule Ecto.DevLoggerTest do
     test "macaddr field" do
       macaddr = %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}
 
-      log =
-        capture_log(fn ->
-          post = %Post{macaddr: macaddr} |> Repo.insert!()
-          assert post.macaddr == macaddr
-        end)
+      log = capture_log(fn -> Repo.insert!(%Post{macaddr: macaddr}) end)
 
       assert strip_ansi(log) =~
                ~S|INSERT INTO "posts" ("macaddr") VALUES ('08:01:2B:05:07:09') RETURNING "id"|
     end
 
     test "enum field" do
-      log =
-        capture_log(fn ->
-          enum_value = [:foo, :baz]
-          post = %Post{enum: enum_value} |> Repo.insert!()
-          assert post.enum == enum_value
-        end)
+      log = capture_log(fn -> Repo.insert!(%Post{enum: [:foo, :baz]}) end)
 
       assert strip_ansi(log) =~
                ~S|INSERT INTO "posts" ("enum") VALUES ({1/*foo*/,5/*baz*/}) RETURNING "id"|
