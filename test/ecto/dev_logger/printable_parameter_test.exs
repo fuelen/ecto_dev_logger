@@ -132,10 +132,10 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
     assert to_expression({{<<101, 49, 95, 131>>, "hello", nil}, {nil, [1, 2, 3]}}) ==
              ~s|ROW(ROW(DECODE('ZTFfgw==','BASE64'),'hello',NULL),'(,"{1,2,3}")')|
 
-    assert to_expression(%Ecto.DevLogger.DBEnum{
-             integers: [1, 2, 3, 4],
-             atoms: [:one, :two, :three, :four]
+    assert to_expression(%Ecto.DevLogger.NumericEnum{
+             integer: 1,
+             atom: :one
            }) ==
-             "{1,2,3,4}/*one,two,three,four*/"
+             "1/*one*/"
   end
 end

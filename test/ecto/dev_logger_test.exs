@@ -90,6 +90,7 @@ defmodule Ecto.DevLoggerTest do
 
   defmodule Post do
     use Ecto.Schema
+    @enum [foo: 1, bar: 2, baz: 5]
 
     @primary_key {:id, :binary_id, read_after_writes: true}
     schema "posts" do
@@ -108,7 +109,8 @@ defmodule Ecto.DevLoggerTest do
       field(:password_digest, :string)
       field(:ip, InetType)
       field(:macaddr, MACADDRType)
-      field(:enum, {:array, Ecto.Enum}, values: [foo: 1, bar: 2, baz: 5])
+      field(:array_of_enums, {:array, Ecto.Enum}, values: @enum)
+      field(:enum, Ecto.Enum, values: @enum)
     end
   end
 
@@ -141,7 +143,8 @@ defmodule Ecto.DevLoggerTest do
         password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd",
         ip: %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24},
         macaddr: %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}},
-        enum: [:foo, :baz]
+        array_of_enums: [:foo, :baz],
+        enum: :bar
       })
 
     post = Repo.get!(Post, post_id)
@@ -168,11 +171,18 @@ defmodule Ecto.DevLoggerTest do
                ~S|INSERT INTO "posts" ("macaddr") VALUES ('08:01:2B:05:07:09') RETURNING "id"|
     end
 
-    test "enum field" do
-      log = capture_log(fn -> Repo.insert!(%Post{enum: [:foo, :baz]}) end)
+    test "array of enums field" do
+      log = capture_log(fn -> Repo.insert!(%Post{array_of_enums: [:foo, :baz]}) end)
 
       assert strip_ansi(log) =~
-               ~S|INSERT INTO "posts" ("enum") VALUES ({1,5}/*foo,baz*/) RETURNING "id"|
+               ~S|INSERT INTO "posts" ("array_of_enums") VALUES (ARRAY[1/*foo*/,5/*baz*/]) RETURNING "id"|
+    end
+
+    test "enum field" do
+      log = capture_log(fn -> Repo.insert!(%Post{enum: :bar}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("enum") VALUES (2/*bar*/) RETURNING "id"|
     end
   end
 
@@ -297,7 +307,7 @@ defmodule Ecto.DevLoggerTest do
 
       select_query_regex =
         (Regex.escape(
-           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\", p0.\"ip\", p0.\"macaddr\", p0.\"enum\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
+           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\", p0.\"ip\", p0.\"macaddr\", p0.\"array_of_enums\", p0.\"enum\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
          ) <>
            "[-0-9a-fA-F]+" <>
            Regex.escape("'\e[36m)\e[90m"))
@@ -394,7 +404,8 @@ defmodule Ecto.DevLoggerTest do
         naive_datetime timestamp without time zone,
         ip INET,
         macaddr MACADDR,
-        enum integer[]
+        array_of_enums integer[],
+        enum integer
       )
       """,
       [],

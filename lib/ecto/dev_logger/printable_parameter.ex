@@ -373,14 +373,12 @@ if Code.ensure_loaded?(Postgrex.Lexeme) do
   end
 end
 
-defimpl Ecto.DevLogger.PrintableParameter, for: Ecto.DevLogger.DBEnum do
-  def to_expression(dbenum) do
-    to_string_literal(dbenum)
+defimpl Ecto.DevLogger.PrintableParameter, for: Ecto.DevLogger.NumericEnum do
+  def to_expression(numeric_enum) do
+    Integer.to_string(numeric_enum.integer) <> "/*#{Atom.to_string(numeric_enum.atom)}*/"
   end
 
-  def to_string_literal(dbenum) do
-    body = Enum.map_join(dbenum.integers, ",", &Integer.to_string/1)
-    comment = Enum.map_join(dbenum.atoms, ",", &Atom.to_string/1)
-    "{" <> body <> "}/*" <> comment <> "*/"
+  def to_string_literal(_numeric_enum) do
+    nil
   end
 end

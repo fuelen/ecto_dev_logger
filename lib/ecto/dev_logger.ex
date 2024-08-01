@@ -168,9 +168,14 @@ defmodule Ecto.DevLogger do
     Enum.zip(metadata.params, metadata.cast_params || [])
     |> Enum.map(fn
       {[p | _] = integers, [c | _] = atoms} when is_integer(p) and is_atom(c) ->
-        %Ecto.DevLogger.DBEnum{integers: integers, atoms: atoms}
+        integers
+        |> Enum.zip(atoms)
+        |> Enum.map(fn {i, a} -> %Ecto.DevLogger.NumericEnum{integer: i, atom: a} end)
 
-      {param, _casted} ->
+      {integer, atom} when is_integer(integer) and is_atom(atom) ->
+        %Ecto.DevLogger.NumericEnum{integer: integer, atom: atom}
+
+      {param, _} ->
         param
     end)
   end
