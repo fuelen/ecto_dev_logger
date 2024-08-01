@@ -372,3 +372,19 @@ if Code.ensure_loaded?(Postgrex.Lexeme) do
     end
   end
 end
+
+defimpl Ecto.DevLogger.PrintableParameter, for: Ecto.DevLogger.DBEnum do
+  def to_expression(dbenum) do
+    to_string_literal(dbenum)
+  end
+
+  def to_string_literal(dbenum) do
+    body =
+      Enum.zip(dbenum.integers, dbenum.atoms)
+      |> Enum.map_join(",", fn {integer, atom} ->
+        "#{integer}/*#{atom}*/"
+      end)
+
+    "{" <> body <> "}"
+  end
+end

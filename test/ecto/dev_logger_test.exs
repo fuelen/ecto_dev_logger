@@ -1,5 +1,6 @@
 defmodule Ecto.DevLoggerTest do
   use ExUnit.Case
+  import ExUnit.CaptureLog
 
   defmodule Repo do
     use Ecto.Repo, adapter: Ecto.Adapters.Postgres, otp_app: :my_test_app
@@ -146,7 +147,48 @@ defmodule Ecto.DevLoggerTest do
     post = Repo.get!(Post, post_id)
     post = post |> Ecto.Changeset.change(string: nil) |> Repo.update!()
     Repo.delete!(post)
+  end
 
+  describe "generates correct sql" do
+    test "ip field" do
+      ip = %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24}
+
+      log =
+        capture_log(fn ->
+          %Post{ip: ip} |> Repo.insert!()
+        end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("ip") VALUES ('127.0.0.1/24') RETURNING "id"|
+    end
+
+    test "macaddr field" do
+      macaddr = %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}
+
+      log =
+        capture_log(fn ->
+          post = %Post{macaddr: macaddr} |> Repo.insert!()
+          assert post.macaddr == macaddr
+        end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("macaddr") VALUES ('08:01:2B:05:07:09') RETURNING "id"|
+    end
+
+    test "enum field" do
+      log =
+        capture_log(fn ->
+          enum_value = [:foo, :baz]
+          post = %Post{enum: enum_value} |> Repo.insert!()
+          assert post.enum == enum_value
+        end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("enum") VALUES ({1/*foo*/,5/*baz*/}) RETURNING "id"|
+    end
+  end
+
+  test "duration" do
     Enum.each([0.02, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15], fn duration ->
       Ecto.Adapters.SQL.query!(Repo, "SELECT pg_sleep(#{duration})", [])
     end)
@@ -225,7 +267,7 @@ defmodule Ecto.DevLoggerTest do
 
       # Log some basic queries
       repo1_log =
-        ExUnit.CaptureLog.capture_log(fn ->
+        capture_log(fn ->
           %{id: post_id} =
             Repo.insert!(%Post{
               datetime: ~U[2022-06-25T14:30:16.639767Z],
@@ -279,7 +321,7 @@ defmodule Ecto.DevLoggerTest do
                ~r/↳\ anonymous\ fn\/0\ in\ Ecto\.DevLoggerTest\."test\ multiple\ repos\ logging\ for\ two\ repos,\ with\ repo\ name"\/1,\ at:\ test\/ecto\/dev_logger_test\.exs:[0-9]+/
 
       repo2_log =
-        ExUnit.CaptureLog.capture_log(fn ->
+        capture_log(fn ->
           %{id: post_id} =
             Repo2.insert!(%Post{
               datetime: ~U[2022-06-25T14:30:16.639767Z],
@@ -333,7 +375,9 @@ defmodule Ecto.DevLoggerTest do
     repo_module.__adapter__().storage_up(config)
     repo_pid = start_supervised!(repo_module)
 
-    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [], log: log_sql_statements)
+    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [],
+      log: log_sql_statements
+    )
 
     repo_module.query!(
       """
@@ -358,8 +402,8 @@ defmodule Ecto.DevLoggerTest do
         money money_type,
         multi_money money_type[],
         password_digest text,
-        datetime timestamp without time zone NOT NULL,
-        naive_datetime timestamp without time zone NOT NULL,
+        datetime timestamp without time zone,
+        naive_datetime timestamp without time zone,
         ip INET,
         macaddr MACADDR,
         enum integer[]
@@ -370,7 +414,7 @@ defmodule Ecto.DevLoggerTest do
     )
 
     ## Swallow the reload warning after changing DB structure.
-    assert ExUnit.CaptureLog.capture_log(fn ->
+    assert capture_log(fn ->
              repo_module.query!("SELECT * FROM posts")
            end) =~
              "forcing us to reload type information from the database. This is expected behaviour whenever you migrate your database."
@@ -383,5 +427,9 @@ defmodule Ecto.DevLoggerTest do
 
     config = repo_module.get_config()
     repo_module.__adapter__().storage_down(config)
+  end
+
+  def strip_ansi(string) do
+    Regex.replace(~r/\e\[[0-9;]*[mGKH]/, string, "")
   end
 end

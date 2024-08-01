@@ -83,6 +83,8 @@ defmodule Ecto.DevLogger do
           [option()]
         ) :: :ok
   def telemetry_handler(_event_name, measurements, metadata, config) do
+    params = preprocess_params(metadata)
+
     if ignore_event?(config, metadata) do
       :ok
     else
@@ -95,7 +97,7 @@ defmodule Ecto.DevLogger do
         fn ->
           query
           |> before_inline_callback.()
-          |> inline_params(metadata.params, color, repo_adapter)
+          |> inline_params(params, color, repo_adapter)
           |> log_sql_iodata(measurements, metadata, color, config)
         end,
         ansi_color: color
@@ -161,6 +163,17 @@ defmodule Ecto.DevLogger do
       {[elem, formatted_value], index + 1}
     end)
     |> elem(0)
+  end
+
+  defp preprocess_params(metadata) do
+    Enum.zip(metadata.params, metadata.cast_params || [])
+    |> Enum.map(fn
+      {[p | _] = integers, [c | _] = atoms} when is_integer(p) and is_atom(c) ->
+        %Ecto.DevLogger.DBEnum{integers: integers, atoms: atoms}
+
+      {param, _casted} ->
+        param
+    end)
   end
 
   defp placeholder_with_number_regex(Ecto.Adapters.Postgres), do: ~r/\$\d+/
