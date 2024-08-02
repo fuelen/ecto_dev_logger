@@ -1,5 +1,6 @@
 defmodule Ecto.DevLoggerTest do
   use ExUnit.Case
+  import ExUnit.CaptureLog
 
   defmodule Repo do
     use Ecto.Repo, adapter: Ecto.Adapters.Postgres, otp_app: :my_test_app
@@ -89,6 +90,7 @@ defmodule Ecto.DevLoggerTest do
 
   defmodule Post do
     use Ecto.Schema
+    @enum [foo: 1, bar: 2, baz: 5]
 
     @primary_key {:id, :binary_id, read_after_writes: true}
     schema "posts" do
@@ -107,7 +109,8 @@ defmodule Ecto.DevLoggerTest do
       field(:password_digest, :string)
       field(:ip, InetType)
       field(:macaddr, MACADDRType)
-      field(:enum, {:array, Ecto.Enum}, values: [foo: 1, bar: 2, baz: 5])
+      field(:array_of_enums, {:array, Ecto.Enum}, values: @enum)
+      field(:enum, Ecto.Enum, values: @enum)
     end
   end
 
@@ -121,32 +124,83 @@ defmodule Ecto.DevLoggerTest do
   end
 
   test "everything" do
-    %{id: post_id} =
-      Repo.insert!(%Post{
-        string: "Post '1'",
-        binary:
-          <<246, 229, 61, 115, 2, 108, 128, 33, 102, 144, 102, 55, 125, 237, 142, 40, 217, 225,
-            234, 79, 134, 83, 85, 94, 218, 15, 55, 38, 39>>,
-        map: %{test: true, string: "\"'"},
-        integer: 0,
-        decimal: Decimal.from_float(0.12),
-        date: Date.utc_today(),
-        time: Time.truncate(Time.utc_now(), :second),
-        array_of_strings: ["single_word", "hello, comma", "hey 'quotes'", "hey \"quotes\""],
-        money: %Money{currency: "USD", value: 390},
-        multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
-        datetime: DateTime.utc_now(),
-        naive_datetime: NaiveDateTime.utc_now(),
-        password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd",
-        ip: %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24},
-        macaddr: %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}},
-        enum: [:foo, :baz]
-      })
+    datetime = ~U[2024-08-01 21:23:53.845311Z]
+    naive_datetime = ~N[2024-08-01 21:23:53.846380]
+    date = ~D[2024-08-01]
+    time = ~T[21:23:53]
+
+    post = %Post{
+      string: "Post '1'",
+      binary:
+        <<246, 229, 61, 115, 2, 108, 128, 33, 102, 144, 102, 55, 125, 237, 142, 40, 217, 225, 234,
+          79, 134, 83, 85, 94, 218, 15, 55, 38, 39>>,
+      map: %{test: true, string: "\"'"},
+      integer: 0,
+      decimal: Decimal.from_float(0.12),
+      date: date,
+      time: time,
+      array_of_strings: ["single_word", "hello, comma", "hey 'quotes'", "hey \"quotes\""],
+      money: %Money{currency: "USD", value: 390},
+      multi_money: [%Money{currency: "USD", value: 230}, %Money{currency: "USD", value: 180}],
+      datetime: datetime,
+      naive_datetime: naive_datetime,
+      password_digest: "$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd",
+      ip: %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24},
+      macaddr: %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}},
+      array_of_enums: [:foo, :baz],
+      enum: :bar
+    }
+
+    {%{id: post_id}, log} = with_log(fn -> Repo.insert!(post) end)
+    IO.puts(log)
+
+    query =
+      "INSERT INTO \"posts\" (\"binary\",\"integer\",\"date\",\"time\",\"string\",\"map\",\"enum\",\"ip\",\"decimal\",\"array_of_strings\",\"money\",\"multi_money\",\"datetime\",\"naive_datetime\",\"password_digest\",\"macaddr\",\"array_of_enums\") VALUES (DECODE('9uU9cwJsgCFmkGY3fe2OKNnh6k+GU1Ve2g83Jic=','BASE64'),0,'2024-08-01','21:23:53','Post ''1''','{\"string\":\"\\\"''\",\"test\":true}',2/*bar*/,'127.0.0.1/24',0.12,'{single_word,\"hello, comma\",hey ''quotes'',hey \\\"quotes\\\"}','(USD,390)','{\"(USD,230)\",\"(USD,180)\"}','2024-08-01 21:23:53.845311Z','2024-08-01 21:23:53.846380','$pbkdf2-sha512$160000$iFMKqXv32lHNL7GsUtajyA$Sa4ebMd','08:01:2B:05:07:09',ARRAY[1/*foo*/,5/*baz*/]) RETURNING \"id\""
+
+    assert %Postgrex.Result{} = Ecto.Adapters.SQL.query!(Repo, query, [])
+
+    assert strip_ansi(log) =~ query
 
     post = Repo.get!(Post, post_id)
     post = post |> Ecto.Changeset.change(string: nil) |> Repo.update!()
     Repo.delete!(post)
+  end
 
+  describe "generates correct sql for structs" do
+    test "ip field" do
+      ip = %Postgrex.INET{address: {127, 0, 0, 1}, netmask: 24}
+
+      log = capture_log(fn -> Repo.insert!(%Post{ip: ip}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("ip") VALUES ('127.0.0.1/24') RETURNING "id"|
+    end
+
+    test "macaddr field" do
+      macaddr = %Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}
+
+      log = capture_log(fn -> Repo.insert!(%Post{macaddr: macaddr}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("macaddr") VALUES ('08:01:2B:05:07:09') RETURNING "id"|
+    end
+
+    test "array of enums field" do
+      log = capture_log(fn -> Repo.insert!(%Post{array_of_enums: [:foo, :baz]}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("array_of_enums") VALUES (ARRAY[1/*foo*/,5/*baz*/]) RETURNING "id"|
+    end
+
+    test "enum field" do
+      log = capture_log(fn -> Repo.insert!(%Post{enum: :bar}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("enum") VALUES (2/*bar*/) RETURNING "id"|
+    end
+  end
+
+  test "duration" do
     Enum.each([0.02, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15], fn duration ->
       Ecto.Adapters.SQL.query!(Repo, "SELECT pg_sleep(#{duration})", [])
     end)
@@ -225,7 +279,7 @@ defmodule Ecto.DevLoggerTest do
 
       # Log some basic queries
       repo1_log =
-        ExUnit.CaptureLog.capture_log(fn ->
+        capture_log(fn ->
           %{id: post_id} =
             Repo.insert!(%Post{
               datetime: ~U[2022-06-25T14:30:16.639767Z],
@@ -267,7 +321,7 @@ defmodule Ecto.DevLoggerTest do
 
       select_query_regex =
         (Regex.escape(
-           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\", p0.\"ip\", p0.\"macaddr\", p0.\"enum\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
+           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\", p0.\"ip\", p0.\"macaddr\", p0.\"array_of_enums\", p0.\"enum\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
          ) <>
            "[-0-9a-fA-F]+" <>
            Regex.escape("'\e[36m)\e[90m"))
@@ -279,7 +333,7 @@ defmodule Ecto.DevLoggerTest do
                ~r/↳\ anonymous\ fn\/0\ in\ Ecto\.DevLoggerTest\."test\ multiple\ repos\ logging\ for\ two\ repos,\ with\ repo\ name"\/1,\ at:\ test\/ecto\/dev_logger_test\.exs:[0-9]+/
 
       repo2_log =
-        ExUnit.CaptureLog.capture_log(fn ->
+        capture_log(fn ->
           %{id: post_id} =
             Repo2.insert!(%Post{
               datetime: ~U[2022-06-25T14:30:16.639767Z],
@@ -333,7 +387,9 @@ defmodule Ecto.DevLoggerTest do
     repo_module.__adapter__().storage_up(config)
     repo_pid = start_supervised!(repo_module)
 
-    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [], log: log_sql_statements)
+    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [],
+      log: log_sql_statements
+    )
 
     repo_module.query!(
       """
@@ -358,11 +414,12 @@ defmodule Ecto.DevLoggerTest do
         money money_type,
         multi_money money_type[],
         password_digest text,
-        datetime timestamp without time zone NOT NULL,
-        naive_datetime timestamp without time zone NOT NULL,
+        datetime timestamp without time zone,
+        naive_datetime timestamp without time zone,
         ip INET,
         macaddr MACADDR,
-        enum integer[]
+        array_of_enums integer[],
+        enum integer
       )
       """,
       [],
@@ -370,7 +427,7 @@ defmodule Ecto.DevLoggerTest do
     )
 
     ## Swallow the reload warning after changing DB structure.
-    assert ExUnit.CaptureLog.capture_log(fn ->
+    assert capture_log(fn ->
              repo_module.query!("SELECT * FROM posts")
            end) =~
              "forcing us to reload type information from the database. This is expected behaviour whenever you migrate your database."
@@ -383,5 +440,9 @@ defmodule Ecto.DevLoggerTest do
 
     config = repo_module.get_config()
     repo_module.__adapter__().storage_down(config)
+  end
+
+  def strip_ansi(string) do
+    Regex.replace(~r/\e\[[0-9;]*[mGKH]/, string, "")
   end
 end

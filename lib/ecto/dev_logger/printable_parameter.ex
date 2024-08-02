@@ -372,3 +372,8 @@ if Code.ensure_loaded?(Postgrex.Lexeme) do
     end
   end
 end
+
+defimpl Ecto.DevLogger.PrintableParameter, for: Ecto.DevLogger.NumericEnum do
+  def to_expression(enum), do: "#{enum.integer}/*#{enum.atom}*/"
+  def to_string_literal(_numeric_enum), do: nil
+end

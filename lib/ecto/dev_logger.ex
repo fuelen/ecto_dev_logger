@@ -90,12 +90,13 @@ defmodule Ecto.DevLogger do
       color = sql_color(query)
       repo_adapter = metadata[:repo].__adapter__()
       before_inline_callback = config[:before_inline_callback] || (&Function.identity/1)
+      params = preprocess_params(metadata)
 
       Logger.debug(
         fn ->
           query
           |> before_inline_callback.()
-          |> inline_params(metadata.params, color, repo_adapter)
+          |> inline_params(params, color, repo_adapter)
           |> log_sql_iodata(measurements, metadata, color, config)
         end,
         ansi_color: color
@@ -161,6 +162,30 @@ defmodule Ecto.DevLogger do
       {[elem, formatted_value], index + 1}
     end)
     |> elem(0)
+  end
+
+  defp preprocess_params(metadata) do
+    cast_params = Map.get(metadata, :cast_params)
+
+    if is_list(cast_params) do
+      Enum.zip_with(
+        [metadata.params, cast_params],
+        fn
+          [[p | _] = integers, [c | _] = atoms] when is_integer(p) and is_atom(c) ->
+            Enum.zip_with([integers, atoms], fn [i, a] ->
+              %Ecto.DevLogger.NumericEnum{integer: i, atom: a}
+            end)
+
+          [integer, atom] when is_integer(integer) and is_atom(atom) ->
+            %Ecto.DevLogger.NumericEnum{integer: integer, atom: atom}
+
+          [param, _] ->
+            param
+        end
+      )
+    else
+      metadata.params
+    end
   end
 
   defp placeholder_with_number_regex(Ecto.Adapters.Postgres), do: ~r/\$\d+/
