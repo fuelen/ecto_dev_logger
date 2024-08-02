@@ -209,7 +209,7 @@ defmodule Ecto.DevLoggerTest do
   describe "inline_params/4" do
     @params [
       nil,
-      <<95, 131, 49, 101, 176, 212, 77, 86, 178, 31, 80, 13, 41, 189, 148, 174>>,
+      "5f833165-b0d4-4d56-b21f-500d29bd94ae",
       [["test"]]
     ]
     @return_to_color :yellow

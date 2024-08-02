@@ -179,6 +179,12 @@ defmodule Ecto.DevLogger do
           [integer, atom] when is_integer(integer) and is_atom(atom) ->
             %Ecto.DevLogger.NumericEnum{integer: integer, atom: atom}
 
+          [[hex | _], [uuid | _] = uuids] when byte_size(hex) == 16 and byte_size(uuid) == 36 ->
+            uuids
+
+          [hex, uuid] when byte_size(hex) == 16 and byte_size(uuid) == 36 ->
+            uuid
+
           [param, _] ->
             param
         end

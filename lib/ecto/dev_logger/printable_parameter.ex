@@ -202,8 +202,6 @@ end
 
 defimpl Ecto.DevLogger.PrintableParameter, for: BitString do
   def to_expression(binary) do
-    binary = maybe_convert_binary_uuid_to_string(binary)
-
     if String.valid?(binary) do
       Ecto.DevLogger.Utils.in_string_quotes(binary)
     else
@@ -212,19 +210,8 @@ defimpl Ecto.DevLogger.PrintableParameter, for: BitString do
   end
 
   def to_string_literal(binary) do
-    binary = maybe_convert_binary_uuid_to_string(binary)
-
     if String.valid?(binary) do
       binary
-    end
-  end
-
-  defp maybe_convert_binary_uuid_to_string(binary) do
-    with <<_::128>> <- binary,
-         {:ok, string} <- Ecto.UUID.load(binary) do
-      string
-    else
-      _ -> binary
     end
   end
 end
