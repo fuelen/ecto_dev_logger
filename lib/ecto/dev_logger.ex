@@ -165,19 +165,27 @@ defmodule Ecto.DevLogger do
   end
 
   defp preprocess_params(metadata) do
-    Enum.zip(metadata.params, metadata.cast_params || [])
-    |> Enum.map(fn
-      {[p | _] = integers, [c | _] = atoms} when is_integer(p) and is_atom(c) ->
-        integers
-        |> Enum.zip(atoms)
-        |> Enum.map(fn {i, a} -> %Ecto.DevLogger.NumericEnum{integer: i, atom: a} end)
+    cast_params = Map.get(metadata, :cast_params)
 
-      {integer, atom} when is_integer(integer) and is_atom(atom) ->
-        %Ecto.DevLogger.NumericEnum{integer: integer, atom: atom}
+    if is_list(cast_params) do
+      Enum.zip_with(
+        [metadata.params, cast_params],
+        fn
+          [[p | _] = integers, [c | _] = atoms] when is_integer(p) and is_atom(c) ->
+            Enum.zip_with([integers, atoms], fn [i, a] ->
+              %Ecto.DevLogger.NumericEnum{integer: i, atom: a}
+            end)
 
-      {param, _} ->
-        param
-    end)
+          [integer, atom] when is_integer(integer) and is_atom(atom) ->
+            %Ecto.DevLogger.NumericEnum{integer: integer, atom: atom}
+
+          [param, _] ->
+            param
+        end
+      )
+    else
+      metadata.params
+    end
   end
 
   defp placeholder_with_number_regex(Ecto.Adapters.Postgres), do: ~r/\$\d+/
