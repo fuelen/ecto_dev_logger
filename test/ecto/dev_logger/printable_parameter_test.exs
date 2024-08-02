@@ -45,9 +45,8 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
            }) == ~s|'{"array":[1,2,3],"boolean":true,"integer":1,"string":"string"}'|
 
     # UUID-like binary
-    assert to_expression(
-             <<220, 46, 200, 4, 110, 226, 70, 137, 168, 241, 190, 89, 170, 128, 119, 31>>
-           ) == "'dc2ec804-6ee2-4689-a8f1-be59aa80771f'"
+    assert to_expression("dc2ec804-6ee2-4689-a8f1-be59aa80771f") ==
+             "'dc2ec804-6ee2-4689-a8f1-be59aa80771f'"
 
     # Date and Time
     assert to_expression(~D[2022-11-04]) == "'2022-11-04'"
