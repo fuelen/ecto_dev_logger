@@ -92,3 +92,11 @@ defmodule MyApp.Application do
   end
 end
 ```
+
+### Running tests
+
+You need to run a local postgres server for the tests to interact with. This is one way to do it: 
+
+```console
+~$ docker run -p5432:5432 --rm --name ecto_dev_logger_postgres -e POSTGRES_PASSWORD=postgres -d postgres
+```
