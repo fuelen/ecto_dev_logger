@@ -210,39 +210,40 @@ defmodule Ecto.DevLoggerTest do
     @params [
       nil,
       "5f833165-b0d4-4d56-b21f-500d29bd94ae",
-      [["test"]]
+      [["test"]],
+      %Ecto.DevLogger.NumericEnum{integer: 1, atom: true}
     ]
     @return_to_color :yellow
     test "Postgres" do
       assert Ecto.DevLogger.inline_params(
-               "UPDATE \"posts\" SET \"string\" = $1 WHERE \"id\" = $2 AND \"array_of_array_of_string\" = $3 RETURNING \"id\"",
+               "UPDATE \"posts\" SET \"string\" = $1 WHERE \"id\" = $2 AND \"array_of_array_of_string\" = $3 OR \"priority?\" = $4 RETURNING \"id\"",
                @params,
                @return_to_color,
                Ecto.Adapters.Postgres
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m OR \"priority?\" = \e[38;5;31m1/*true*/\e[33m RETURNING \"id\""
     end
 
     test "Tds" do
       assert Ecto.DevLogger.inline_params(
-               "UPDATE \"posts\" SET \"string\" = @1 WHERE \"id\" = @2 AND \"array_of_array_of_string\" = @3 RETURNING \"id\"",
+               "UPDATE \"posts\" SET \"string\" = @1 WHERE \"id\" = @2 AND \"array_of_array_of_string\" = @3 OR \"priority?\" = @4 RETURNING \"id\"",
                @params,
                @return_to_color,
                Ecto.Adapters.Tds
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m OR \"priority?\" = \e[38;5;31m1/*true*/\e[33m RETURNING \"id\""
     end
 
     test "MySQL" do
       assert to_string(
                Ecto.DevLogger.inline_params(
-                 "UPDATE \"posts\" SET \"string\" = ? WHERE \"id\" = ? AND \"array_of_array_of_string\" = ? RETURNING \"id\"",
+                 "UPDATE \"posts\" SET \"string\" = ? WHERE \"id\" = ? AND \"array_of_array_of_string\" = ? OR \"priority?\" = ? RETURNING \"id\"",
                  @params,
                  @return_to_color,
                  Ecto.Adapters.MyXQL
                )
              ) ==
-               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m RETURNING \"id\""
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m OR \"priority?\" = \e[38;5;31m1/*true*/\e[33m RETURNING \"id\""
     end
   end
 

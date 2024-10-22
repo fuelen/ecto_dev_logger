@@ -146,7 +146,7 @@ defmodule Ecto.DevLogger do
       |> Map.new(fn {value, index} -> {index, value} end)
 
     query
-    |> String.split("?")
+    |> String.split(~r{\?(?!")})
     |> Enum.map_reduce(0, fn elem, index ->
       formatted_value =
         case Map.fetch(params_by_index, index) do
