@@ -245,6 +245,18 @@ defmodule Ecto.DevLoggerTest do
              ) ==
                "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m OR \"priority?\" = \e[38;5;31m1/*true*/\e[33m RETURNING \"id\""
     end
+
+    test "SQLite3" do
+      assert to_string(
+               Ecto.DevLogger.inline_params(
+                 "UPDATE \"posts\" SET \"string\" = ? WHERE \"id\" = ? AND \"array_of_array_of_string\" = ? OR \"priority?\" = ? RETURNING \"id\"",
+                 @params,
+                 @return_to_color,
+                 Ecto.Adapters.SQLite3
+               )
+             ) ==
+               "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m OR \"priority?\" = \e[38;5;31m1/*true*/\e[33m RETURNING \"id\""
+    end
   end
 
   test "install returns error from failure to attach " do

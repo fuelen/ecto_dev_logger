@@ -139,7 +139,8 @@ defmodule Ecto.DevLogger do
     end)
   end
 
-  def inline_params(query, params, return_to_color, Ecto.Adapters.MyXQL) do
+  def inline_params(query, params, return_to_color, repo_adapter)
+      when repo_adapter in [Ecto.Adapters.MyXQL, Ecto.Adapters.SQLite3] do
     params_by_index =
       params
       |> Enum.with_index()
