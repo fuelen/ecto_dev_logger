@@ -5,8 +5,8 @@
 An alternative logger for Ecto queries.
 
 It inlines bindings into the query, so it is easy to copy-paste logged SQL and run it in any IDE for debugging without
-manual transformation of common elixir terms to string representation (binary UUID, DateTime, Decimal, json, etc).
-Also, it highlights db time to make slow queries noticeable. Source table and inlined bindings are highlighted as well.
+manual transformation of common Elixir terms to string representations (binary UUID, DateTime, Decimal, JSON, etc.).
+It also highlights DB time to make slow queries noticeable. The source table and inlined bindings are highlighted as well.
 
 ![before and after](./assets/screenshot.png)
 
@@ -23,17 +23,17 @@ def deps do
 end
 ```
 
-Then disable default logger for your repo in config file for dev mode:
+Then disable the default logger for your repo in the config file for development:
 ```elixir
 if config_env() == :dev do
   config :my_app, MyApp.Repo, log: false
 end
 ```
-And install telemetry handler in `MyApp.Application`:
+Then install the telemetry handler in `MyApp.Application`:
 ```elixir
 Ecto.DevLogger.install(MyApp.Repo)
 ```
-Telemetry handler will be installed *only* if `log` configuration value is set to `false`.
+The telemetry handler will be installed only if the repo `:log` configuration is set to `false`.
 
 That's it.
 
@@ -74,7 +74,7 @@ defmodule MyApp.Application do
 end
 ```
 
-### Ignore logging for a single Repo call
+### Ignore logging for a single `Repo` call
 
 If you want to suppress logging for a specific query or Repo operation, pass `log: false` via `telemetry_options`:
 
@@ -89,8 +89,8 @@ This prevents `Ecto.DevLogger` from emitting a log for that telemetry event whil
 
 ### Format queries
 
-It is possible to format queries using a `:before_inline_callback` option.
-Here is an example of setup using [pgFormatter](https://github.com/darold/pgFormatter) as an external utility:
+It is possible to format queries using the `:before_inline_callback` option.
+Here is an example setup using [pgFormatter](https://github.com/darold/pgFormatter) as an external utility:
 ```elixir
 defmodule MyApp.Application do
   def start(_type, _args) do
@@ -108,7 +108,7 @@ end
 
 ### Running tests
 
-You need to run a local postgres server for the tests to interact with. This is one way to do it: 
+You need to run a local PostgreSQL server for the tests to interact with. This is one way to do it:
 
 ```console
 $ docker run -p5432:5432 --rm --name ecto_dev_logger_postgres -e POSTGRES_PASSWORD=postgres -d postgres

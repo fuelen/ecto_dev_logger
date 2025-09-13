@@ -3,8 +3,8 @@ defmodule Ecto.DevLogger do
   An alternative logger for Ecto queries.
 
   It inlines bindings into the query, so it is easy to copy-paste logged SQL and run it in any IDE for debugging without
-  manual transformation of common elixir terms to string representation (binary UUID, DateTime, Decimal, json, etc).
-  Also, it highlights db time to make slow queries noticeable. Source table and inlined bindings are highlighted as well.
+  manual transformation of common Elixir terms to string representations (binary UUID, DateTime, Decimal, JSON, etc.).
+  It also highlights DB time to make slow queries noticeable. The source table and inlined bindings are highlighted as well.
   """
 
   require Logger
@@ -12,20 +12,20 @@ defmodule Ecto.DevLogger do
   @type option :: {:log_repo_name, boolean()} | {:ignore_event, (metadata :: map() -> boolean())}
 
   @doc """
-  Attaches `telemetry_handler/4` to application.
+  Attaches `telemetry_handler/4` to the application.
 
   Returns the result from the call to `:telemetry.attach/4` or `:ok` if the repo has default logging enabled.
 
   ## Options
 
-  * `:log_repo_name` - when truthy will add the repo name into the log.
-  * `:ignore_event` - a callback which allows to skip some telemetry events thus skip printing logs.
+  * `:log_repo_name` - when truthy, adds the repo name to the log output.
+  * `:ignore_event` - a callback that allows skipping specific telemetry events, thus suppressing logs.
   By default, the library ignores events from `Oban` and events related to migration queries.
-  These checks are not overridable by `:ignore_event` callback and have priority over it.
-  * `:before_inline_callback` - a callback which allows to modify the query before inlining of bindings.
-  You can use this option to format the query using external utility, like `pgformatter`, etc.
+  These checks are not overridable by the `:ignore_event` callback and have priority over it.
+  * `:before_inline_callback` - a callback that allows modifying the query before inlining bindings.
+  You can use this option to format the query using an external utility, like `pgformatter`, etc.
 
-  To ignore logging for a single Repo operation, pass `log: false` via `telemetry_options` to that call, for example:
+  To ignore logging for a single Repo operation, pass `log: false` via `telemetry_options` to that call; for example:
 
       Repo.query!("SELECT 1", [], telemetry_options: [log: false])
       Repo.insert!(changeset, telemetry_options: [log: false])
