@@ -328,6 +328,27 @@ if Code.ensure_loaded?(Postgrex.Range) do
   end
 end
 
+if Code.ensure_loaded?(Postgrex.Multirange) do
+  defimpl Ecto.DevLogger.PrintableParameter, for: Postgrex.Multirange do
+    def to_expression(%Postgrex.Multirange{} = multirange) do
+      multirange
+      |> to_string_literal()
+      |> Ecto.DevLogger.Utils.in_string_quotes()
+    end
+
+    def to_string_literal(%Postgrex.Multirange{ranges: ranges}) do
+      ranges = ranges || []
+
+      body =
+        Enum.map_join(ranges, ",", fn %Postgrex.Range{} = range ->
+          Ecto.DevLogger.PrintableParameter.to_string_literal(range)
+        end)
+
+      "{" <> body <> "}"
+    end
+  end
+end
+
 if Code.ensure_loaded?(Postgrex.Interval) do
   defimpl Ecto.DevLogger.PrintableParameter, for: Postgrex.Interval do
     def to_expression(struct),

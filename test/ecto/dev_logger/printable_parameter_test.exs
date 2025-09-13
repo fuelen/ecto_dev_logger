@@ -200,5 +200,13 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
              lower_inclusive: true,
              upper_inclusive: false
            }) == "'[2022-11-04,2022-11-10)'"
+
+    # Multirange
+    mr = %Postgrex.Multirange{ranges: [
+      %Postgrex.Range{lower: 1, upper: 3, lower_inclusive: true, upper_inclusive: false},
+      %Postgrex.Range{lower: 10, upper: 15, lower_inclusive: false, upper_inclusive: true}
+    ]}
+
+    assert to_expression(mr) == "'{[1,3),(10,15]}'"
   end
 end
