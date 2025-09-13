@@ -1,27 +1,51 @@
 defprotocol Ecto.DevLogger.PrintableParameter do
   @moduledoc """
-  A protocol to print various data structures as valid SQL expressions.
+  A protocol for rendering values as valid, copy‑pastable SQL expressions.
+
+  `Ecto.DevLogger` calls this protocol for every bound parameter when it inlines values
+  into the logged SQL.
+
+  When should I implement this?
+  - When a value you pass as a query parameter is a struct or type that does not
+    have a built‑in implementation.
+  - This is common with PostgreSQL custom/extension types that live outside `postgrex`
+    (e.g. third‑party extensions), or with domain‑specific structs used via custom `Ecto.Type`s
+    (for example: `Money`, `LTree`, or proprietary composite types).
+
+  Without an implementation, the logger falls back to `inspect/1`, which may not be
+  valid SQL and therefore not directly runnable.
+
+  How to implement
+  - If your value can be represented as a single string literal that your database accepts,
+    implement `to_string_literal/1` and have `to_expression/1` wrap it in single quotes.
+  - If it must be rendered as a structured SQL expression (e.g. `ROW(...)`, casts, or
+    constructor functions), implement `to_expression/1` directly and return `nil` from
+    `to_string_literal/1`.
+
+  Example: PostgreSQL composite type represented by a struct
+
+      defmodule MyApp.Money do
+        defstruct [:currency, :amount]
+      end
+
+      defimpl Ecto.DevLogger.PrintableParameter, for: MyApp.Money do
+        def to_expression(%MyApp.Money{} = money) do
+          string = to_string_literal(money)
+          "'\#{String.replace(string, "'", "''")}'"
+        end
+
+        def to_string_literal(%MyApp.Money{currency: cur, amount: amt}) do
+          "(\#{cur},\#{amt})"
+        end
+      end
+
+  Arrays and tuples
+  - When all elements implement `to_string_literal/1`, lists and tuples are formatted as
+    PostgreSQL array and composite string literals (`'{...}'` and `'(...)'`). Otherwise,
+    they are rendered using `ARRAY[...]` and `ROW(...)`, with each element formatted via
+    `to_expression/1`.
 
   `to_expression/1` is the main function and `to_string_literal/1` is an optional helper for it.
-
-  `Ecto.DevLogger` tries to represent complex terms, like arrays (lists) and composite types (tuples)
-  as string literal first. Not all terms are easy/efficient/whatever to represent as strings, so if
-  `to_string_literal/1` returns a string for all elements inside the array,
-  then array will be represented as string as well. Otherwise, array will be represented using `ARRAY` constructor:
-
-      iex> Ecto.DevLogger.PrintableParameter.to_expression(["Elixir", "Ecto"])
-      "'{Elixir,Ecto}'"
-
-      iex> Ecto.DevLogger.PrintableParameter.to_expression(["Elixir", "Ecto", <<153>>])
-      "ARRAY['Elixir','Ecto',DECODE('mQ==','BASE64')]"
-
-  The same is true for composite types (tuples):
-
-      iex> Ecto.DevLogger.PrintableParameter.to_expression({"Elixir", "Ecto"})
-      "'(Elixir,Ecto)'"
-
-      iex> Ecto.DevLogger.PrintableParameter.to_expression({"Elixir", "Ecto", <<153>>})
-      "ROW('Elixir','Ecto',DECODE('mQ==','BASE64'))"
   """
 
   @doc """
