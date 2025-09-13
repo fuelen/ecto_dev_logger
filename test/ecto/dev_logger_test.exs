@@ -2,6 +2,12 @@ defmodule Ecto.DevLoggerTest do
   use ExUnit.Case
   import ExUnit.CaptureLog
 
+  Postgrex.Types.define(
+    Ecto.DevLoggerTest.PostgresTypes,
+    [Geo.PostGIS.Extension | Ecto.Adapters.Postgres.extensions()],
+    json: Jason
+  )
+
   defmodule Repo do
     use Ecto.Repo, adapter: Ecto.Adapters.Postgres, otp_app: :my_test_app
 
@@ -18,7 +24,8 @@ defmodule Ecto.DevLoggerTest do
         port: 5432,
         log: false,
         stacktrace: true,
-        pool_size: 10
+        pool_size: 10,
+        types: Ecto.DevLoggerTest.PostgresTypes
       ]
     end
   end
@@ -343,6 +350,103 @@ defmodule Ecto.DevLoggerTest do
     end
   end
 
+  defmodule GeoPost do
+    use Ecto.Schema
+    @primary_key {:id, :binary_id, read_after_writes: true}
+    schema "geo_posts" do
+      field(:point, Geo.PostGIS.Geometry)
+      field(:polygon, Geo.PostGIS.Geometry)
+      field(:line_string, Geo.PostGIS.Geometry)
+      field(:multi_point, Geo.PostGIS.Geometry)
+      field(:multi_line_string, Geo.PostGIS.Geometry)
+      field(:multi_polygon, Geo.PostGIS.Geometry)
+      field(:geometry_collection, Geo.PostGIS.Geometry)
+    end
+  end
+
+  test "logs with geo_postgis geometry fields and hits DB" do
+    Repo.query!("CREATE EXTENSION IF NOT EXISTS postgis", [], telemetry_options: [log: false])
+
+    Repo.query!(
+      """
+      CREATE TABLE IF NOT EXISTS geo_posts (
+        id uuid PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+        point geometry(Point, 4326),
+        polygon geometry(Polygon),
+        line_string geometry(LineString),
+        multi_point geometry(MultiPoint),
+        multi_line_string geometry(MultiLineString),
+        multi_polygon geometry(MultiPolygon),
+        geometry_collection geometry(GeometryCollection)
+      )
+      """,
+      [],
+      telemetry_options: [log: false]
+    )
+
+    point = %Geo.Point{coordinates: {44.21587, -87.5947}, srid: 4326, properties: %{}}
+
+    polygon = %Geo.Polygon{
+      coordinates: [[{2.20, 41.41}, {2.13, 41.41}, {2.13, 41.35}, {2.20, 41.35}, {2.20, 41.41}]],
+      srid: nil,
+      properties: %{}
+    }
+
+    line = %Geo.LineString{coordinates: [{0.0, 0.0}, {1.0, 1.0}], srid: nil, properties: %{}}
+    mpoint = %Geo.MultiPoint{coordinates: [{0.0, 0.0}, {1.0, 1.0}], srid: nil, properties: %{}}
+
+    mline = %Geo.MultiLineString{
+      coordinates: [[{0.0, 0.0}, {1.0, 1.0}]],
+      srid: nil,
+      properties: %{}
+    }
+
+    mpoly = %Geo.MultiPolygon{
+      coordinates: [[[{0.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {0.0, 0.0}]]],
+      srid: nil,
+      properties: %{}
+    }
+
+    gcoll = %Geo.GeometryCollection{geometries: [point, line], srid: nil, properties: %{}}
+
+    log =
+      capture_log(fn ->
+        Repo.insert!(%GeoPost{
+          point: point,
+          polygon: polygon,
+          line_string: line,
+          multi_point: mpoint,
+          multi_line_string: mline,
+          multi_polygon: mpoly,
+          geometry_collection: gcoll
+        })
+      end)
+
+    plain = strip_ansi(log)
+    # Extract the VALUES(...) section of the geo_posts INSERT in one regex run
+    [[values_section]] =
+      Regex.scan(
+        ~r/INSERT INTO \"geo_posts\" \([^)]*\) VALUES \(([\s\S]*?)\)\s+RETURNING \"id\"/,
+        plain,
+        capture: :all_but_first
+      )
+
+    # Extract all single-quoted values from VALUES(...)
+    values = Regex.scan(~r/'[^']*'/, values_section) |> Enum.map(&hd/1)
+
+    expected_values = [
+      "'SRID=4326;POINT(44.21587 -87.5947)'",
+      "'POLYGON((2.2 41.41,2.13 41.41,2.13 41.35,2.2 41.35,2.2 41.41))'",
+      "'LINESTRING(0.0 0.0,1.0 1.0)'",
+      "'MULTIPOINT(0.0 0.0,1.0 1.0)'",
+      "'MULTILINESTRING((0.0 0.0,1.0 1.0))'",
+      "'MULTIPOLYGON(((0.0 0.0,0.0 1.0,1.0 1.0,0.0 0.0)))'",
+      "'GEOMETRYCOLLECTION(POINT(44.21587 -87.5947),LINESTRING(0.0 0.0,1.0 1.0))'"
+    ]
+
+    assert Enum.sort(values) == Enum.sort(expected_values)
+  end
+
   test "duration" do
     Enum.each([0.02, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15], fn duration ->
       Ecto.Adapters.SQL.query!(Repo, "SELECT pg_sleep(#{duration})", [])
@@ -534,7 +638,7 @@ defmodule Ecto.DevLoggerTest do
     end
   end
 
-  defp setup_repo(repo_module, log_sql_statements \\ false) do
+  defp setup_repo(repo_module) do
     config = repo_module.get_config()
 
     Application.put_env(:my_test_app, repo_module, config)
@@ -542,16 +646,13 @@ defmodule Ecto.DevLoggerTest do
     repo_module.__adapter__().storage_up(config)
     repo_pid = start_supervised!(repo_module)
 
-    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [],
-      log: log_sql_statements
-    )
+    repo_module.query!("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";", [])
 
     repo_module.query!(
       """
       CREATE TYPE money_type AS (currency char(3), value integer);
       """,
-      [],
-      log: log_sql_statements
+      []
     )
 
     repo_module.query!(
@@ -583,8 +684,7 @@ defmodule Ecto.DevLoggerTest do
         date_range daterange
       )
       """,
-      [],
-      log: log_sql_statements
+      []
     )
 
     ## Swallow the reload warning after changing DB structure.

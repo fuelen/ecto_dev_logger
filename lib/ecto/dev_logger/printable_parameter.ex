@@ -78,23 +78,32 @@ defimpl Ecto.DevLogger.PrintableParameter, for: Map do
   def to_string_literal(map), do: Jason.encode!(map)
 end
 
-if Code.ensure_loaded?(Geo.Point) do
-  defimpl Ecto.DevLogger.PrintableParameter, for: Geo.Point do
-    def to_expression(point) do
-      point |> to_string_literal() |> Ecto.DevLogger.Utils.in_string_quotes()
+for geo_mod <- [
+      Geo.Point,
+      Geo.PointZ,
+      Geo.PointM,
+      Geo.PointZM,
+      Geo.LineString,
+      Geo.LineStringZ,
+      Geo.LineStringZM,
+      Geo.Polygon,
+      Geo.PolygonZ,
+      Geo.MultiPoint,
+      Geo.MultiPointZ,
+      Geo.MultiLineString,
+      Geo.MultiLineStringZ,
+      Geo.MultiPolygon,
+      Geo.MultiPolygonZ,
+      Geo.GeometryCollection
+    ] do
+  if Code.ensure_loaded?(geo_mod) do
+    defimpl Ecto.DevLogger.PrintableParameter, for: geo_mod do
+      def to_expression(geometry) do
+        geometry |> to_string_literal() |> Ecto.DevLogger.Utils.in_string_quotes()
+      end
+
+      def to_string_literal(geometry), do: to_string(geometry)
     end
-
-    def to_string_literal(point), do: Jason.encode!(point)
-  end
-end
-
-if Code.ensure_loaded?(Geo.Polygon) do
-  defimpl Ecto.DevLogger.PrintableParameter, for: Geo.Polygon do
-    def to_expression(point) do
-      point |> to_string_literal() |> Ecto.DevLogger.Utils.in_string_quotes()
-    end
-
-    def to_string_literal(point), do: Jason.encode!(point)
   end
 end
 

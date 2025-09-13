@@ -92,8 +92,7 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
 
     assert to_expression([
              %Geo.Point{coordinates: {44.21587, -87.5947}, srid: 4326, properties: %{}}
-           ]) ==
-             "'{\"{\\\"coordinates\\\":[44.21587,-87.5947],\\\"crs\\\":{\\\"properties\\\":{\\\"name\\\":\\\"EPSG:4326\\\"},\\\"type\\\":\\\"name\\\"},\\\"type\\\":\\\"Point\\\"}\"}'"
+           ]) == "'{SRID=4326;POINT(44.21587 -87.5947)}'"
 
     assert to_expression([
              %Geo.Polygon{
@@ -103,8 +102,7 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
                srid: nil,
                properties: %{}
              }
-           ]) ==
-             "'{\"{\\\"coordinates\\\":[[[2.2,41.41],[2.13,41.41],[2.13,41.35],[2.2,41.35],[2.2,41.41]]],\\\"type\\\":\\\"Polygon\\\"}\"}'"
+           ]) == "'{\"POLYGON((2.2 41.41,2.13 41.41,2.13 41.35,2.2 41.35,2.2 41.41))\"}'"
 
     assert to_expression([%Postgrex.MACADDR{address: {8, 1, 43, 5, 7, 9}}]) ==
              "'{08:01:2B:05:07:09}'"
@@ -202,11 +200,124 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
            }) == "'[2022-11-04,2022-11-10)'"
 
     # Multirange
-    mr = %Postgrex.Multirange{ranges: [
-      %Postgrex.Range{lower: 1, upper: 3, lower_inclusive: true, upper_inclusive: false},
-      %Postgrex.Range{lower: 10, upper: 15, lower_inclusive: false, upper_inclusive: true}
-    ]}
+    mr = %Postgrex.Multirange{
+      ranges: [
+        %Postgrex.Range{lower: 1, upper: 3, lower_inclusive: true, upper_inclusive: false},
+        %Postgrex.Range{lower: 10, upper: 15, lower_inclusive: false, upper_inclusive: true}
+      ]
+    }
 
     assert to_expression(mr) == "'{[1,3),(10,15]}'"
+  end
+
+  test "to_expression/1 for all Geo geometry types" do
+    assert to_expression(%Geo.Point{coordinates: {1.0, 2.0}, srid: 4326, properties: %{}}) ==
+             "'SRID=4326;POINT(1.0 2.0)'"
+
+    assert to_expression(%Geo.PointZ{coordinates: {1.0, 2.0, 3.0}, srid: nil, properties: %{}}) ==
+             "'POINT Z(1.0 2.0 3.0)'"
+
+    assert to_expression(%Geo.PointM{coordinates: {1.0, 2.0, 4.0}, srid: 3857, properties: %{}}) ==
+             "'SRID=3857;POINT M(1.0 2.0 4.0)'"
+
+    assert to_expression(%Geo.PointZM{
+             coordinates: {1.0, 2.0, 3.0, 4.0},
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'POINT ZM(1.0 2.0 3.0 4.0)'"
+
+    assert to_expression(%Geo.LineString{
+             coordinates: [{0.0, 0.0}, {1.0, 1.0}],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'LINESTRING(0.0 0.0,1.0 1.0)'"
+
+    assert to_expression(%Geo.LineStringZ{
+             coordinates: [{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'LINESTRINGZ(0.0 0.0 0.0,1.0 1.0 1.0)'"
+
+    assert to_expression(%Geo.LineStringZM{
+             coordinates: [{0.0, 0.0, 0.0, 5.0}, {1.0, 1.0, 1.0, 6.0}],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'LINESTRINGZM(0.0 0.0 0.0 5.0,1.0 1.0 1.0 6.0)'"
+
+    assert to_expression(%Geo.Polygon{
+             coordinates: [[{0.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {0.0, 0.0}]],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'POLYGON((0.0 0.0,0.0 1.0,1.0 1.0,0.0 0.0))'"
+
+    assert to_expression(%Geo.PolygonZ{
+             coordinates: [[{0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}, {0.0, 0.0, 0.0}]],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'POLYGON((0.0 0.0 0.0,0.0 1.0 0.0,1.0 1.0 0.0,0.0 0.0 0.0))'"
+
+    assert to_expression(%Geo.MultiPoint{
+             coordinates: [{0.0, 0.0}, {1.0, 1.0}],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'MULTIPOINT(0.0 0.0,1.0 1.0)'"
+
+    assert to_expression(%Geo.MultiPointZ{
+             coordinates: [{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'MULTIPOINTZ(0.0 0.0 0.0,1.0 1.0 1.0)'"
+
+    assert to_expression(%Geo.MultiLineString{
+             coordinates: [[{0.0, 0.0}, {1.0, 1.0}]],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'MULTILINESTRING((0.0 0.0,1.0 1.0))'"
+
+    assert to_expression(%Geo.MultiLineStringZ{
+             coordinates: [[{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}]],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'MULTILINESTRINGZ((0.0 0.0 0.0,1.0 1.0 1.0))'"
+
+    assert to_expression(%Geo.MultiPolygon{
+             coordinates: [[[{0.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}, {0.0, 0.0}]]],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'MULTIPOLYGON(((0.0 0.0,0.0 1.0,1.0 1.0,0.0 0.0)))'"
+
+    assert to_expression(%Geo.MultiPolygonZ{
+             coordinates: [
+               [[{0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}, {0.0, 0.0, 0.0}]]
+             ],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'MULTIPOLYGONZ(((0.0 0.0 0.0,0.0 1.0 0.0,1.0 1.0 0.0,0.0 0.0 0.0)))'"
+
+    assert to_expression(%Geo.GeometryCollection{
+             geometries: [
+               %Geo.Point{coordinates: {1.0, 2.0}, srid: nil, properties: %{}},
+               %Geo.LineString{
+                 coordinates: [{0.0, 0.0}, {1.0, 1.0}],
+                 srid: nil,
+                 properties: %{}
+               }
+             ],
+             srid: nil,
+             properties: %{}
+           }) ==
+             "'GEOMETRYCOLLECTION(POINT(1.0 2.0),LINESTRING(0.0 0.0,1.0 1.0))'"
   end
 end

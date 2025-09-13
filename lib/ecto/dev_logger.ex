@@ -24,6 +24,11 @@ defmodule Ecto.DevLogger do
   These checks are not overridable by `:ignore_event` callback and have priority over it.
   * `:before_inline_callback` - a callback which allows to modify the query before inlining of bindings.
   You can use this option to format the query using external utility, like `pgformatter`, etc.
+
+  To ignore logging for a single Repo operation, pass `log: false` via `telemetry_options` to that call, for example:
+
+      Repo.query!("SELECT 1", [], telemetry_options: [log: false])
+      Repo.insert!(changeset, telemetry_options: [log: false])
   """
   @spec install(repo_module :: module(), opts :: [option()]) :: :ok | {:error, :already_exists}
   def install(repo_module, opts \\ []) when is_atom(repo_module) do
@@ -69,7 +74,7 @@ defmodule Ecto.DevLogger do
   end
 
   defp ignore_event?(config, metadata) do
-    oban_query?(metadata) or schema_migration?(metadata) or
+    metadata[:options][:log] == false or oban_query?(metadata) or schema_migration?(metadata) or
       (config[:ignore_event] || (&always_false/1)).(metadata)
   end
 

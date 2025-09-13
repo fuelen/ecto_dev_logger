@@ -74,6 +74,19 @@ defmodule MyApp.Application do
 end
 ```
 
+### Ignore logging for a single Repo call
+
+If you want to suppress logging for a specific query or Repo operation, pass `log: false` via `telemetry_options`:
+
+```elixir
+# Examples
+Repo.query!("CREATE EXTENSION IF NOT EXISTS postgis", [], telemetry_options: [log: false])
+Repo.insert!(changeset, telemetry_options: [log: false])
+Repo.get!(User, user_id, telemetry_options: [log: false])
+```
+
+This prevents `Ecto.DevLogger` from emitting a log for that telemetry event while still executing the operation normally.
+
 ### Format queries
 
 It is possible to format queries using a `:before_inline_callback` option.
@@ -98,5 +111,11 @@ end
 You need to run a local postgres server for the tests to interact with. This is one way to do it: 
 
 ```console
-~$ docker run -p5432:5432 --rm --name ecto_dev_logger_postgres -e POSTGRES_PASSWORD=postgres -d postgres
+$ docker run -p5432:5432 --rm --name ecto_dev_logger_postgres -e POSTGRES_PASSWORD=postgres -d postgres
+```
+
+If you want PostGIS enabled (for geometry types and extensions), run a PostGIS image instead:
+
+```console
+$ docker run -p5432:5432 --rm --name ecto_dev_logger_postgis -e POSTGRES_PASSWORD=postgres -d postgis/postgis
 ```
