@@ -136,5 +136,69 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
              atom: :one
            }) ==
              "1/*one*/"
+
+    # Ranges (Postgrex.Range)
+    assert to_expression(%Postgrex.Range{
+             lower: 1,
+             upper: 5,
+             lower_inclusive: true,
+             upper_inclusive: false
+           }) == "'[1,5)'"
+
+    assert to_expression(%Postgrex.Range{
+             lower: :unbound,
+             upper: 5,
+             lower_inclusive: true,
+             upper_inclusive: false
+           }) == "'[,5)'"
+
+    assert to_expression(%Postgrex.Range{
+             lower: 1,
+             upper: :unbound,
+             lower_inclusive: true,
+             upper_inclusive: false
+           }) == "'[1,)'"
+
+    assert to_expression(%Postgrex.Range{
+             lower: Decimal.new("0.12"),
+             upper: Decimal.new("10.5"),
+             lower_inclusive: false,
+             upper_inclusive: true
+           }) == "'(0.12,10.5]'"
+
+    assert to_expression(%Postgrex.Range{lower: :empty}) == "'empty'"
+
+    # Ranges with other element types
+    # int8range-like (large integers)
+    assert to_expression(%Postgrex.Range{
+             lower: 10_000_000_000,
+             upper: 10_000_000_010,
+             lower_inclusive: true,
+             upper_inclusive: false
+           }) == "'[10000000000,10000000010)'"
+
+    # tsrange (NaiveDateTime)
+    assert to_expression(%Postgrex.Range{
+             lower: ~N[2022-06-25 14:30:16.643949],
+             upper: ~N[2022-06-25 15:30:16.643949],
+             lower_inclusive: true,
+             upper_inclusive: false
+           }) == "'[2022-06-25 14:30:16.643949,2022-06-25 15:30:16.643949)'"
+
+    # tstzrange (DateTime)
+    assert to_expression(%Postgrex.Range{
+             lower: ~U[2022-06-25 14:30:16.639767Z],
+             upper: ~U[2022-06-25 15:30:16.643949Z],
+             lower_inclusive: false,
+             upper_inclusive: true
+           }) == "'(2022-06-25 14:30:16.639767Z,2022-06-25 15:30:16.643949Z]'"
+
+    # daterange (Date)
+    assert to_expression(%Postgrex.Range{
+             lower: ~D[2022-11-04],
+             upper: ~D[2022-11-10],
+             lower_inclusive: true,
+             upper_inclusive: false
+           }) == "'[2022-11-04,2022-11-10)'"
   end
 end

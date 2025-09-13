@@ -296,6 +296,38 @@ if Code.ensure_loaded?(Postgrex.MACADDR) do
   end
 end
 
+if Code.ensure_loaded?(Postgrex.Range) do
+  defimpl Ecto.DevLogger.PrintableParameter, for: Postgrex.Range do
+    def to_expression(range) do
+      range
+      |> to_string_literal()
+      |> Ecto.DevLogger.Utils.in_string_quotes()
+    end
+
+    def to_string_literal(%Postgrex.Range{lower: :empty}), do: "empty"
+    def to_string_literal(%Postgrex.Range{upper: :empty}), do: "empty"
+
+    def to_string_literal(%Postgrex.Range{} = range) do
+      left_bracket = if range.lower_inclusive, do: "[", else: "("
+      right_bracket = if range.upper_inclusive, do: "]", else: ")"
+
+      lower =
+        case range.lower do
+          :unbound -> ""
+          value -> Ecto.DevLogger.PrintableParameter.to_string_literal(value)
+        end
+
+      upper =
+        case range.upper do
+          :unbound -> ""
+          value -> Ecto.DevLogger.PrintableParameter.to_string_literal(value)
+        end
+
+      left_bracket <> lower <> "," <> upper <> right_bracket
+    end
+  end
+end
+
 if Code.ensure_loaded?(Postgrex.Interval) do
   defimpl Ecto.DevLogger.PrintableParameter, for: Postgrex.Interval do
     def to_expression(struct),

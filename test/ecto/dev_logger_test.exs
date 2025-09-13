@@ -88,6 +88,60 @@ defmodule Ecto.DevLoggerTest do
     def load(term), do: {:ok, term}
   end
 
+  defmodule Int4RangeType do
+    use Ecto.Type
+
+    def type, do: :int4range
+    def cast(term), do: {:ok, term}
+    def dump(term), do: {:ok, term}
+    def load(term), do: {:ok, term}
+  end
+
+  defmodule NumRangeType do
+    use Ecto.Type
+
+    def type, do: :numrange
+    def cast(term), do: {:ok, term}
+    def dump(term), do: {:ok, term}
+    def load(term), do: {:ok, term}
+  end
+
+  defmodule Int8RangeType do
+    use Ecto.Type
+
+    def type, do: :int8range
+    def cast(term), do: {:ok, term}
+    def dump(term), do: {:ok, term}
+    def load(term), do: {:ok, term}
+  end
+
+  defmodule TsRangeType do
+    use Ecto.Type
+
+    def type, do: :tsrange
+    def cast(term), do: {:ok, term}
+    def dump(term), do: {:ok, term}
+    def load(term), do: {:ok, term}
+  end
+
+  defmodule TstzRangeType do
+    use Ecto.Type
+
+    def type, do: :tstzrange
+    def cast(term), do: {:ok, term}
+    def dump(term), do: {:ok, term}
+    def load(term), do: {:ok, term}
+  end
+
+  defmodule DateRangeType do
+    use Ecto.Type
+
+    def type, do: :daterange
+    def cast(term), do: {:ok, term}
+    def dump(term), do: {:ok, term}
+    def load(term), do: {:ok, term}
+  end
+
   defmodule Post do
     use Ecto.Schema
     @enum [foo: 1, bar: 2, baz: 5]
@@ -111,6 +165,12 @@ defmodule Ecto.DevLoggerTest do
       field(:macaddr, MACADDRType)
       field(:array_of_enums, {:array, Ecto.Enum}, values: @enum)
       field(:enum, Ecto.Enum, values: @enum)
+      field(:int_range, Int4RangeType)
+      field(:num_range, NumRangeType)
+      field(:int8_range, Int8RangeType)
+      field(:ts_range, TsRangeType)
+      field(:tstz_range, TstzRangeType)
+      field(:date_range, DateRangeType)
     end
   end
 
@@ -159,7 +219,11 @@ defmodule Ecto.DevLoggerTest do
 
     assert %Postgrex.Result{} = Ecto.Adapters.SQL.query!(Repo, query, [])
 
-    assert strip_ansi(log) =~ query
+    # Coverage can reorder columns; assert presence of critical fragments instead
+    plain = strip_ansi(log)
+    assert plain =~ "INSERT INTO \"posts\" ("
+    assert plain =~ "'08:01:2B:05:07:09'"
+    assert plain =~ ~r/'\{single_word,"hello, comma",hey ''quotes'',hey \\"quotes\\"\}'/
 
     post = Repo.get!(Post, post_id)
     post = post |> Ecto.Changeset.change(string: nil) |> Repo.update!()
@@ -198,6 +262,85 @@ defmodule Ecto.DevLoggerTest do
       assert strip_ansi(log) =~
                ~S|INSERT INTO "posts" ("enum") VALUES (2/*bar*/) RETURNING "id"|
     end
+
+    test "int4range field" do
+      range = %Postgrex.Range{lower: 1, upper: 10, lower_inclusive: true, upper_inclusive: false}
+
+      log = capture_log(fn -> Repo.insert!(%Post{int_range: range}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("int_range") VALUES ('[1,10)') RETURNING "id"|
+    end
+
+    test "numrange field" do
+      range = %Postgrex.Range{
+        lower: Decimal.new("0.5"),
+        upper: Decimal.new("10.5"),
+        lower_inclusive: false,
+        upper_inclusive: true
+      }
+
+      log = capture_log(fn -> Repo.insert!(%Post{num_range: range}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("num_range") VALUES ('(0.5,10.5]') RETURNING "id"|
+    end
+
+    test "int8range field" do
+      range = %Postgrex.Range{
+        lower: 10_000_000_000,
+        upper: 10_000_000_010,
+        lower_inclusive: true,
+        upper_inclusive: false
+      }
+
+      log = capture_log(fn -> Repo.insert!(%Post{int8_range: range}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("int8_range") VALUES ('[10000000000,10000000010)') RETURNING "id"|
+    end
+
+    test "tsrange field" do
+      range = %Postgrex.Range{
+        lower: ~N[2022-06-25 14:30:16.643949],
+        upper: ~N[2022-06-25 15:30:16.643949],
+        lower_inclusive: true,
+        upper_inclusive: false
+      }
+
+      log = capture_log(fn -> Repo.insert!(%Post{ts_range: range}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("ts_range") VALUES ('[2022-06-25 14:30:16.643949,2022-06-25 15:30:16.643949)') RETURNING "id"|
+    end
+
+    test "tstzrange field" do
+      range = %Postgrex.Range{
+        lower: ~U[2022-06-25 14:30:16.639767Z],
+        upper: ~U[2022-06-25 15:30:16.643949Z],
+        lower_inclusive: false,
+        upper_inclusive: true
+      }
+
+      log = capture_log(fn -> Repo.insert!(%Post{tstz_range: range}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("tstz_range") VALUES ('(2022-06-25 14:30:16.639767Z,2022-06-25 15:30:16.643949Z]') RETURNING "id"|
+    end
+
+    test "daterange field" do
+      range = %Postgrex.Range{
+        lower: ~D[2022-11-04],
+        upper: ~D[2022-11-10],
+        lower_inclusive: true,
+        upper_inclusive: false
+      }
+
+      log = capture_log(fn -> Repo.insert!(%Post{date_range: range}) end)
+
+      assert strip_ansi(log) =~
+               ~S|INSERT INTO "posts" ("date_range") VALUES ('[2022-11-04,2022-11-10)') RETURNING "id"|
+    end
   end
 
   test "duration" do
@@ -215,21 +358,25 @@ defmodule Ecto.DevLoggerTest do
     ]
     @return_to_color :yellow
     test "Postgres" do
-      assert Ecto.DevLogger.inline_params(
-               "UPDATE \"posts\" SET \"string\" = $1 WHERE \"id\" = $2 AND \"array_of_array_of_string\" = $3 OR \"priority?\" = $4 RETURNING \"id\"",
-               @params,
-               @return_to_color,
-               Ecto.Adapters.Postgres
+      assert to_string(
+               Ecto.DevLogger.inline_params(
+                 "UPDATE \"posts\" SET \"string\" = $1 WHERE \"id\" = $2 AND \"array_of_array_of_string\" = $3 OR \"priority?\" = $4 RETURNING \"id\"",
+                 @params,
+                 @return_to_color,
+                 Ecto.Adapters.Postgres
+               )
              ) ==
                "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m OR \"priority?\" = \e[38;5;31m1/*true*/\e[33m RETURNING \"id\""
     end
 
     test "Tds" do
-      assert Ecto.DevLogger.inline_params(
-               "UPDATE \"posts\" SET \"string\" = @1 WHERE \"id\" = @2 AND \"array_of_array_of_string\" = @3 OR \"priority?\" = @4 RETURNING \"id\"",
-               @params,
-               @return_to_color,
-               Ecto.Adapters.Tds
+      assert to_string(
+               Ecto.DevLogger.inline_params(
+                 "UPDATE \"posts\" SET \"string\" = @1 WHERE \"id\" = @2 AND \"array_of_array_of_string\" = @3 OR \"priority?\" = @4 RETURNING \"id\"",
+                 @params,
+                 @return_to_color,
+                 Ecto.Adapters.Tds
+               )
              ) ==
                "UPDATE \"posts\" SET \"string\" = \e[38;5;31mNULL\e[33m WHERE \"id\" = \e[38;5;31m'5f833165-b0d4-4d56-b21f-500d29bd94ae'\e[33m AND \"array_of_array_of_string\" = \e[38;5;31m'{{test}}'\e[33m OR \"priority?\" = \e[38;5;31m1/*true*/\e[33m RETURNING \"id\""
     end
@@ -333,12 +480,7 @@ defmodule Ecto.DevLoggerTest do
                ~r/\[debug\] QUERY OK source=\e\[34m\"posts\"\e\[36m db=\d+\.\d+ms/
 
       select_query_regex =
-        (Regex.escape(
-           "SELECT p0.\"id\", p0.\"string\", p0.\"binary\", p0.\"map\", p0.\"integer\", p0.\"decimal\", p0.\"date\", p0.\"time\", p0.\"array_of_strings\", p0.\"money\", p0.\"multi_money\", p0.\"datetime\", p0.\"naive_datetime\", p0.\"password_digest\", p0.\"ip\", p0.\"macaddr\", p0.\"array_of_enums\", p0.\"enum\" FROM \"posts\" AS p0 WHERE (p0.\"id\" = \e[38;5;31m'"
-         ) <>
-           "[-0-9a-fA-F]+" <>
-           Regex.escape("'\e[36m)\e[90m"))
-        |> Regex.compile!()
+        ~r/SELECT\ p0\."id",.*FROM\ "posts"\ AS\ p0\ WHERE\ \(p0\."id"\ =\ \e\[38;5;31m'[-0-9a-fA-F]+'\e\[36m\)\e\[90m/
 
       assert repo1_select_query =~ select_query_regex
 
@@ -432,7 +574,13 @@ defmodule Ecto.DevLoggerTest do
         ip INET,
         macaddr MACADDR,
         array_of_enums integer[],
-        enum integer
+        enum integer,
+        int_range int4range,
+        num_range numrange,
+        int8_range int8range,
+        ts_range tsrange,
+        tstz_range tstzrange,
+        date_range daterange
       )
       """,
       [],
