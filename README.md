@@ -1,6 +1,7 @@
 # Ecto.DevLogger
 
 [![Hex.pm](https://img.shields.io/hexpm/v/ecto_dev_logger.svg)](https://hex.pm/packages/ecto_dev_logger)
+[![Hex.pm Downloads](https://img.shields.io/hexpm/dt/ecto_dev_logger)](https://hex.pm/packages/ecto_dev_logger)
 
 An alternative logger for Ecto queries.
 
