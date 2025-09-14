@@ -8,9 +8,9 @@ defprotocol Ecto.DevLogger.PrintableParameter do
   When should I implement this?
   - When a value you pass as a query parameter is a struct or type that does not
     have a built‑in implementation.
-  - This is common with PostgreSQL custom/extension types that live outside `postgrex`
-    (e.g. third‑party extensions), or with domain‑specific structs used via custom `Ecto.Type`s
-    (for example: `Money`, `LTree`, or proprietary composite types).
+  - This is common with driver‑level custom/extension types (for example, structs from database
+    driver libraries) or domain‑specific structs that ultimately become such driver types.
+    `Ecto.DevLogger` operates below `Ecto.Type` casting and only sees the post‑cast values.
 
   Without an implementation, the logger falls back to `inspect/1`, which may not be
   valid SQL and therefore not directly runnable.
