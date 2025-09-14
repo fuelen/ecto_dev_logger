@@ -19,7 +19,7 @@ The package can be installed by adding `ecto_dev_logger` to your list of depende
 ```elixir
 def deps do
   [
-    {:ecto_dev_logger, "~> 0.14"}
+    {:ecto_dev_logger, "~> 0.15"}
   ]
 end
 ```
