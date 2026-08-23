@@ -113,6 +113,7 @@ Below are examples of how common Elixir values are rendered in logged SQL:
 | `true` / `false` | `true` / `false` | |
 | `"hello"` | `'hello'` | Strings are single-quoted |
 | `<<1, 2, 3>>` | `DECODE('AQID','BASE64')` | Non‑UTF‑8 binaries use a base64 decode function |
+| `<<1::1, 0::1, 1::1>>` | `B'101'` | Non-byte-aligned bitstrings use PostgreSQL bit-string syntax |
 | `123` | `123` | Integers are unquoted |
 | `12.34` | `12.34` | Floats are unquoted |
 | `Decimal.new("12.34")` | `12.34` | Decimals are unquoted |
@@ -120,6 +121,7 @@ Below are examples of how common Elixir values are rendered in logged SQL:
 | `~U[2023-01-02 03:04:05Z]` | `'2023-01-02 03:04:05Z'` | DateTimes are quoted strings |
 | `~N[2023-01-02 03:04:05]` | `'2023-01-02 03:04:05'` | NaiveDateTimes are quoted strings |
 | `~T[03:04:05]` | `'03:04:05'` | Times are quoted strings |
+| `%Duration{month: 13, day: 2, hour: 3}` | `'P13M2DT3H'` | Durations use ISO 8601 syntax |
 | `%{"a" => 1}` | `'{"a":1}'` | Maps are rendered as JSON strings |
 | `["Elixir", "Ecto"]` | `'{Elixir,Ecto}'` | Array string literal when all elements are string‑renderable |
 | `["Elixir", <<153>>]` | `ARRAY['Elixir', DECODE('mQ==','BASE64')]` | Falls back to `ARRAY[...]` if mixed |
