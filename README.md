@@ -160,6 +160,18 @@ Below are examples when the `geo` library is available:
 | `%Geo.MultiPolygonZ{coordinates: [[[{0.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}, {0.0, 0.0, 0.0}]]}]` | `'MULTIPOLYGONZ(((0.0 0.0 0.0,0.0 1.0 0.0,1.0 1.0 0.0,0.0 0.0 0.0)))'` |
 | `%Geo.GeometryCollection{geometries: [%Geo.Point{coordinates: {1.0, 2.0}}, %Geo.LineString{coordinates: [{0.0, 0.0}, {1.0, 1.0}]}]}` | `'GEOMETRYCOLLECTION(POINT(1.0 2.0),LINESTRING(0.0 0.0,1.0 1.0))'` |
 
+### Query timings
+
+By default, Ecto.DevLogger shows database query and decode times. Additional timing values can be enabled when installing
+the logger:
+
+```elixir
+Ecto.DevLogger.install(MyApp.Repo, timings: [:query, :decode, :queue, :idle, :total])
+```
+
+The available values are `:query`, `:decode`, `:queue`, `:idle`, and `:total`. Their order in the log is fixed regardless
+of the order in the option. Pass `timings: []` to hide all timing values.
+
 ### Format queries
 
 It is possible to format queries using the `:before_inline_callback` option.

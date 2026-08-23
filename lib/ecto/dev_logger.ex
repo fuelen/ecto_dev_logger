@@ -9,12 +9,23 @@ defmodule Ecto.DevLogger do
 
   require Logger
 
+  @type timing :: :query | :decode | :queue | :idle | :total
   @type log_stacktrace_mfa :: {module(), atom(), [term()]}
   @type option ::
           {:log_repo_name, boolean()}
           | {:ignore_event, (metadata :: map() -> boolean())}
           | {:before_inline_callback, (String.t() -> String.t())}
           | {:log_stacktrace_mfa, log_stacktrace_mfa() | nil}
+          | {:timings, [timing()]}
+
+  @default_timings [:query, :decode]
+  @timing_specs [
+    {:query, "db", :query_time, true},
+    {:decode, "decode", :decode_time, false},
+    {:queue, "queue", :queue_time, false},
+    {:idle, "idle", :idle_time, true},
+    {:total, "total", :total_time, true}
+  ]
 
   @doc """
   Attaches `telemetry_handler/4` to the application.
@@ -33,6 +44,9 @@ defmodule Ecto.DevLogger do
   followed by its configured arguments, and returns the stacktrace entries to log. Defaults to the
   Repo's `:log_stacktrace_mfa` configuration when present. Pass `nil` to keep the logger's default
   single-caller output.
+  * `:timings` - the query timing values to include in the log. Available values are `:query`,
+  `:decode`, `:queue`, `:idle`, and `:total`. Defaults to `[:query, :decode]`. Pass an empty list
+  to hide all timing values.
 
   To ignore logging for a single Repo operation, pass `log: false` via `telemetry_options` to that call; for example:
 
@@ -239,8 +253,7 @@ defmodule Ecto.DevLogger do
       log_ok_error(metadata.result),
       log_ok_source(metadata.source, color),
       log_repo(metadata.repo, color, config),
-      log_time("db", measurements, :query_time, true, color),
-      log_time("decode", measurements, :decode_time, false, color),
+      log_timings(measurements, color, config),
       ?\n,
       query,
       log_stacktrace(metadata[:stacktrace], metadata.repo, config[:log_stacktrace_mfa])
@@ -264,6 +277,14 @@ defmodule Ecto.DevLogger do
 
   defp log_ok_source(source, color),
     do: [" source=", colorize(inspect(source), IO.ANSI.blue(), apply(IO.ANSI, color, []))]
+
+  defp log_timings(measurements, color, config) do
+    enabled_timings = Keyword.get(config, :timings, @default_timings)
+
+    for {timing, label, measurement, force} <- @timing_specs, timing in enabled_timings do
+      log_time(label, measurements, measurement, force, color)
+    end
+  end
 
   defp log_time(label, measurements, key, force, color) do
     case measurements do
