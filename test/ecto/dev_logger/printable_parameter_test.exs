@@ -214,6 +214,20 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
     assert to_expression(mr) == "'{[1,3),(10,15]}'"
   end
 
+  test "to_expression/1 for Duration" do
+    duration = %Duration{
+      month: 13,
+      day: 2,
+      hour: 3,
+      minute: 4,
+      second: 5,
+      microsecond: {6000, 6}
+    }
+
+    assert to_expression(duration) == "'P13M2DT3H4M5.006000S'"
+    assert to_expression([duration]) == "'{P13M2DT3H4M5.006000S}'"
+  end
+
   test "to_expression/1 for all Geo geometry types" do
     assert to_expression(%Geo.Point{coordinates: {1.0, 2.0}, srid: 4326, properties: %{}}) ==
              "'SRID=4326;POINT(1.0 2.0)'"

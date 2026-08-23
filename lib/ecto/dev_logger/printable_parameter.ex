@@ -233,6 +233,16 @@ defimpl Ecto.DevLogger.PrintableParameter, for: Time do
   def to_string_literal(time), do: Time.to_string(time)
 end
 
+defimpl Ecto.DevLogger.PrintableParameter, for: Duration do
+  def to_expression(duration) do
+    duration
+    |> to_string_literal()
+    |> Ecto.DevLogger.Utils.in_string_quotes()
+  end
+
+  def to_string_literal(duration), do: Duration.to_iso8601(duration)
+end
+
 defimpl Ecto.DevLogger.PrintableParameter, for: BitString do
   def to_expression(bitstring) when not is_binary(bitstring) do
     bits = for <<bit::1 <- bitstring>>, into: "", do: Integer.to_string(bit)
