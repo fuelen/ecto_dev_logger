@@ -234,6 +234,11 @@ defimpl Ecto.DevLogger.PrintableParameter, for: Time do
 end
 
 defimpl Ecto.DevLogger.PrintableParameter, for: BitString do
+  def to_expression(bitstring) when not is_binary(bitstring) do
+    bits = for <<bit::1 <- bitstring>>, into: "", do: Integer.to_string(bit)
+    "B'#{bits}'"
+  end
+
   def to_expression(binary) do
     if String.valid?(binary) do
       Ecto.DevLogger.Utils.in_string_quotes(binary)
@@ -241,6 +246,8 @@ defimpl Ecto.DevLogger.PrintableParameter, for: BitString do
       "DECODE('#{Base.encode64(binary)}','BASE64')"
     end
   end
+
+  def to_string_literal(bitstring) when not is_binary(bitstring), do: nil
 
   def to_string_literal(binary) do
     if String.valid?(binary) do

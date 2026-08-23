@@ -36,6 +36,10 @@ defmodule Ecto.DevLogger.PrintableParameterTest do
     assert to_expression(<<95, 131, 49, 101, 176, 212, 77, 86>>) ==
              "DECODE('X4MxZbDUTVY=','BASE64')"
 
+    # Bitstring
+    assert to_expression(<<1::1, 0::1, 1::1>>) == "B'101'"
+    assert to_expression([<<1::1>>, <<0::1, 1::1>>]) == "ARRAY[B'1',B'01']"
+
     # Map
     assert to_expression(%{
              "string" => "string",
