@@ -9,7 +9,12 @@ defmodule Ecto.DevLogger do
 
   require Logger
 
-  @type option :: {:log_repo_name, boolean()} | {:ignore_event, (metadata :: map() -> boolean())}
+  @type log_stacktrace_mfa :: {module(), atom(), [term()]}
+  @type option ::
+          {:log_repo_name, boolean()}
+          | {:ignore_event, (metadata :: map() -> boolean())}
+          | {:before_inline_callback, (String.t() -> String.t())}
+          | {:log_stacktrace_mfa, log_stacktrace_mfa() | nil}
 
   @doc """
   Attaches `telemetry_handler/4` to the application.
@@ -24,6 +29,10 @@ defmodule Ecto.DevLogger do
   These checks are not overridable by the `:ignore_event` callback and have priority over it.
   * `:before_inline_callback` - a callback that allows modifying the query before inlining bindings.
   You can use this option to format the query using an external utility, like `pgformatter`, etc.
+  * `:log_stacktrace_mfa` - an MFA that receives the stacktrace and `%{repo: repo}` metadata,
+  followed by its configured arguments, and returns the stacktrace entries to log. Defaults to the
+  Repo's `:log_stacktrace_mfa` configuration when present. Pass `nil` to keep the logger's default
+  single-caller output.
 
   To ignore logging for a single Repo operation, pass `log: false` via `telemetry_options` to that call; for example:
 
@@ -35,11 +44,13 @@ defmodule Ecto.DevLogger do
     config = repo_module.config()
 
     if config[:log] == false do
+      handler_config = Keyword.put_new(opts, :log_stacktrace_mfa, config[:log_stacktrace_mfa])
+
       :telemetry.attach(
         handler_id(repo_module),
         config[:telemetry_prefix] ++ [:query],
         &__MODULE__.telemetry_handler/4,
-        opts
+        handler_config
       )
     else
       :ok
@@ -232,7 +243,7 @@ defmodule Ecto.DevLogger do
       log_time("decode", measurements, :decode_time, false, color),
       ?\n,
       query,
-      log_stacktrace(metadata[:stacktrace], metadata.repo)
+      log_stacktrace(metadata[:stacktrace], metadata.repo, config[:log_stacktrace_mfa])
     ]
   end
 
@@ -308,7 +319,7 @@ defmodule Ecto.DevLogger do
     end
   end
 
-  defp log_stacktrace(stacktrace, repo) do
+  defp log_stacktrace(stacktrace, repo, nil) do
     with [_ | _] <- stacktrace,
          {module, function, arity, info} <- last_non_ecto(Enum.reverse(stacktrace), repo, nil) do
       [
@@ -322,6 +333,23 @@ defmodule Ecto.DevLogger do
       _ -> []
     end
   end
+
+  defp log_stacktrace([_ | _] = stacktrace, repo, {module, function, args}) do
+    stacktrace
+    |> then(&apply(module, function, [&1, %{repo: repo} | args]))
+    |> Enum.with_index(fn {module, function, arity, info}, index ->
+      [
+        ?\n,
+        if(IO.ANSI.enabled?(), do: IO.ANSI.light_black(), else: ""),
+        if(index == 0, do: "↳ ", else: "  "),
+        Exception.format_mfa(module, function, arity),
+        log_stacktrace_info(info),
+        if(IO.ANSI.enabled?(), do: IO.ANSI.reset(), else: "")
+      ]
+    end)
+  end
+
+  defp log_stacktrace(_, _, _), do: []
 
   defp log_stacktrace_info([file: file, line: line] ++ _) do
     [", at: ", file, ?:, Integer.to_string(line)]
