@@ -190,9 +190,7 @@ defmodule Ecto.DevLogger do
       formatted_value =
         case Map.fetch(params_by_index, index) do
           {:ok, value} ->
-            value
-            |> Ecto.DevLogger.PrintableParameter.to_expression()
-            |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
+            inline_param(value, return_to_color)
 
           :error ->
             []
