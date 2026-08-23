@@ -114,33 +114,41 @@ defmodule Ecto.DevLogger do
     query
   end
 
-  def inline_params(query, params, return_to_color, repo_adapter)
-      when repo_adapter in [Ecto.Adapters.Postgres, Ecto.Adapters.Tds] do
+  def inline_params(query, params, return_to_color, Ecto.Adapters.Postgres) do
     params_by_index =
       params
       |> Enum.with_index(1)
       |> Map.new(fn {value, index} -> {index, value} end)
 
-    placeholder_with_number_regex = placeholder_with_number_regex(repo_adapter)
-
-    String.replace(query, placeholder_with_number_regex, fn
+    String.replace(query, ~r/\$\d+/, fn
       <<_prefix::utf8, index::binary>> = replacement ->
         case Map.fetch(params_by_index, String.to_integer(index)) do
           {:ok, value} ->
-            try do
-              value
-              |> Ecto.DevLogger.PrintableParameter.to_expression()
-              |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
-            rescue
-              Protocol.UndefinedError ->
-                value
-                |> inspect()
-                |> colorize(IO.ANSI.color(5, 0, 0), apply(IO.ANSI, return_to_color, []))
-            end
+            inline_param(value, return_to_color)
 
           :error ->
             replacement
         end
+    end)
+  end
+
+  def inline_params(query, params, return_to_color, Ecto.Adapters.Tds) do
+    params_by_placeholder =
+      params
+      |> Enum.with_index(1)
+      |> Map.new(fn
+        {%{__struct__: Tds.Parameter, name: name, value: value}, _index} when is_binary(name) ->
+          {name, value}
+
+        {value, index} ->
+          {"@#{index}", value}
+      end)
+
+    String.replace(query, ~r/@[[:alnum:]_@$#]+/u, fn placeholder ->
+      case Map.fetch(params_by_placeholder, placeholder) do
+        {:ok, value} -> inline_param(value, return_to_color)
+        :error -> placeholder
+      end
     end)
   end
 
@@ -168,6 +176,19 @@ defmodule Ecto.DevLogger do
       {[elem, formatted_value], index + 1}
     end)
     |> elem(0)
+  end
+
+  defp inline_param(value, return_to_color) do
+    try do
+      value
+      |> Ecto.DevLogger.PrintableParameter.to_expression()
+      |> colorize(IO.ANSI.color(0, 2, 3), apply(IO.ANSI, return_to_color, []))
+    rescue
+      Protocol.UndefinedError ->
+        value
+        |> inspect()
+        |> colorize(IO.ANSI.color(5, 0, 0), apply(IO.ANSI, return_to_color, []))
+    end
   end
 
   defp preprocess_params(metadata) do
@@ -199,9 +220,6 @@ defmodule Ecto.DevLogger do
       metadata.params
     end
   end
-
-  defp placeholder_with_number_regex(Ecto.Adapters.Postgres), do: ~r/\$\d+/
-  defp placeholder_with_number_regex(Ecto.Adapters.Tds), do: ~r/@\d+/
 
   defp log_sql_iodata(query, measurements, metadata, color, config) do
     [
